@@ -6,7 +6,7 @@ const initRoute = (router, {url, callback, type, upload, auth}) => {
         type = type?.toLowerCase(); // 기본적으로 소문자 처리
         if(type == undefined || type == null || type == ''){ // default는 POST 방식
             connType = 'post';
-        }else if(type == 'put' || type == 'patch' || type == 'delete' || type == 'trace' || type == 'options' || type == 'connect' || type == 'track'){
+        }else if(type == 'trace' || type == 'options' || type == 'connect' || type == 'track'){
             console.log(`${type} - ${url} 취약 메서드입니다. 제외합니다.`);
             return; // ISSUE : 취약점에 걸리는 METHOD 제외
         }else{
