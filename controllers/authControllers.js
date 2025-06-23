@@ -4,7 +4,7 @@ const passport = require('passport'); // 인증 미들웨어
 // * Controllers 기본 구조
 //  1) router 및 initRoute repuire
 const router = require('express').Router(); // express의 Router 객체 생성(모듈 로드)
-const { initRoute } = require('../routes/routes'); // 라우트 작성
+const { initRoute } = require('../routes/common_routes'); // 라우트 작성
 //  2) 통신 객체 배열 선언
 const authControllers = [
     // 1. 로그인 기능

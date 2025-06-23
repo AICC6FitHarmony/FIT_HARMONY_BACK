@@ -72,7 +72,6 @@ const getParams = (request) => {
     if(file != undefined){
         param.file = file;
     }
-
     // params == {} 는 정상적으로 비교되지 않으므로, key 개수가 0인지를 확인해서 처리
     // Object.keys(param).length
     return Object.keys(param).length == 0 ? undefined : param; // 빈객체면 그냥 undefined 반환
