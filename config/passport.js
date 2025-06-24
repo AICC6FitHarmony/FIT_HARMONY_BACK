@@ -53,9 +53,9 @@ passport.use(new GoogleStrategy({
         // console.log(profile);
 
         // const user = await sendQuery('select id, username, role, email, profile_image from USER where user_id = $1', [id]);
-        const user = await sendQuery('SELECT  USER_NAME,NICK_NAME,EMAIL from "USER" where email = "$1"', [emails[0].value]);
+        const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where EMAIL = $1', [emails[0].value]);
         
-        console.log(user)
+        console.log(user, emails[0].value)
         if (user?.length > 0) {
             return done(null, user[0]); // 기존 사용자
         }else{
@@ -76,9 +76,9 @@ passport.serializeUser((user, done) => {
 });
 
 // 세션에서 ID로 사용자 정보 복원
-passport.deserializeUser(async (id, done) => {
+passport.deserializeUser(async (userId, done) => {
     try {
-        const res = await sendQuery('select id, username, role from users WHERE id = $1', [id]);
+        const res = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where USER_ID = $1', [userId]);
         done(null, res[0]);
     } catch (err) {
         done(err);
