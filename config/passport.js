@@ -35,12 +35,12 @@ passport.use(new GoogleStrategy({
             const values = [
                 displayName,
                 formData.nick_name,
-                formData.age,
                 emails[0].value,
+                formData.age,
                 formData.height,
                 formData.weight,
                 formData.gender,
-                "01012345678",
+                "01044444444",
                 "MEMBER",
             ];
             console.log(values)
@@ -72,7 +72,7 @@ passport.use(new GoogleStrategy({
 passport.serializeUser((user, done) => {
     // done(error, user, info)는 Passport 내부에서 인증 결과를 전달하는 콜백
     console.log(user);
-    done(null, user?.id,{message:"serializeUser Error"});
+    done(null, user?.userId,{message:"serializeUser Error"});
 });
 
 // 세션에서 ID로 사용자 정보 복원
