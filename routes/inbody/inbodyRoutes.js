@@ -6,10 +6,10 @@ const { getUserInbodyData } = require('../../controllers/inbody/inbodyController
 // const { authenticateToken } = require('../../middleware/auth');
 
 /**
- * @route   GET /inbody/user/:userId
+ * @route   GET /inbody/:userId
  * @desc    특정 사용자의 Inbody 데이터 조회
  * @access  Public (또는 Private - 인증 필요시)
  */
-router.get('/user/:userId', getUserInbodyData);
+router.get('/:userId', getUserInbodyData);
 
 module.exports = router; 
