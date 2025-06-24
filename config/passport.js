@@ -10,45 +10,57 @@ function hashPassword(password) {
   return crypto.createHash('sha512').update(password).digest('hex');
 }
 
-// 일반 로그인
-passport.use(new LocalStrategy(async (id, password, done) => {
-    try {
-        const user = await sendQuery('select * from users where id = $1', [id]);
-        if (!user) return done(null, false, { message: 'ID / 비밀번호를 확인해주십시오.' });
-
-        const hashed = hashPassword(password);
-        if (user.password !== hashed) {
-            // done(error, user, info)는 Passport 내부에서 인증 결과를 전달하는 콜백
-            return done(null, false, { message: 'ID / 비밀번호를 확인해주십시오.' });
-        }
-
-        return done(null, user); // 성공 시 사용자 반환
-    } catch (err) {
-        return done(err);
-    }
-}));
-
-
 // 구글 로그인
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL
-}, async (accessToken, refreshToken, profile, done) => {
+    callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    passReqToCallback: true
+}, async (req, accessToken, refreshToken, profile, done) => {
     try {
-        const { id, displayName, emails, photos } = profile;
-        const user = await sendQuery('select id, username, role, email, profile_image from users where google_id = $1', [id]);
+        console.log(profile);
+        const { id,displayName, emails, photos } = profile;
+        const formData = req?.session?.oauthFormData;
+        const profile_image = req.session.oauthProfileImage;
+        // console.log(profile_image);
+        console.log(formData)
+        if(formData !== undefined){//회원가입
+            const query = `
+            INSERT INTO "USER" (
+            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,PHONE_NUMBER,ROLE) VALUES (
+            $1, $2, $3, $4, $5, $6,$7,$8,$9
+            ) RETURNING USER_ID;
+        `;
 
-        if (user.length > 0) {
+            const values = [
+                displayName,
+                formData.nick_name,
+                formData.age,
+                emails[0].value,
+                formData.height,
+                formData.weight,
+                formData.gender,
+                "01012345678",
+                "MEMBER",
+            ];
+            console.log(values)
+            const user = await sendQuery(query, values);
+
+
+
+            return done(null, user);
+        }
+        // console.log(profile);
+
+        // const user = await sendQuery('select id, username, role, email, profile_image from USER where user_id = $1', [id]);
+        const user = await sendQuery('SELECT  USER_NAME,NICK_NAME,EMAIL from "USER" where email = "$1"', [emails[0].value]);
+        
+        console.log(user)
+        if (user?.length > 0) {
             return done(null, user[0]); // 기존 사용자
         }else{
-            // 새 사용자 생성
-            const insert = await sendQuery(`
-                insert into users (google_id, username, email, profile_image, password )
-                values ( $1, $2, $3, $4, '' ) returning *`,
-                [id, displayName, emails[0].value, photos[0].value]
-            );
-            return done(null, insert[0]);
+            console.log("가입되지 않은 회원")
+            return done(null,false, {message:"가입되지 않은 회원", success:false})
         }
     } catch (err) {
         console.log(err);
@@ -59,7 +71,8 @@ passport.use(new GoogleStrategy({
 // 세션 저장 시 사용자 ID만 저장
 passport.serializeUser((user, done) => {
     // done(error, user, info)는 Passport 내부에서 인증 결과를 전달하는 콜백
-    done(null, user.id);
+    console.log(user);
+    done(null, user?.id,{message:"serializeUser Error"});
 });
 
 // 세션에서 ID로 사용자 정보 복원

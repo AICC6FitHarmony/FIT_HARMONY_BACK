@@ -6,6 +6,7 @@ const cors = require('cors'); // Cross-Origin Resource Sharing 설정 미들웨�
 const helmet = require('helmet'); // Express 앱에 보안 관련 HTTP 헤더를 자동 설정해주는 미들웨어
 const path = require('path'); // 경로 관련 모듈
 const cmmn = require('./config/cmmn'); // 공통 활용 기능 로드
+const upload = require('./routes/login/uploads');
 require('./config/passport'); // Passport 설정 불러오기
 require('dotenv').config(); // 환경변수 불러오기
 
@@ -20,7 +21,10 @@ app.use(helmet());
 
 // CORS 설정
 // cors() : 제한 없음.
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173', // React 도메인
+    credentials: true
+}));
 
 // JSON 요청 본문 파싱
 app.use(express.json());
@@ -29,7 +33,8 @@ app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET, // .env에서 비밀키 사용
   resave: false, // 매 요청마다 세션 저장 안함
-  saveUninitialized: false, // 초기화되지 않은 세션 저장 안함
+//   saveUninitialized: false, // 초기화되지 않은 세션 저장 안함
+  saveUninitialized: true, // 회원가입시 form 저장
   cookie: {
     httpOnly: true, // JS에서 쿠키 접근 차단
     secure: (process.env.IS_LIVE === 'true'),  // HTTPS 사용 시 true
@@ -84,6 +89,13 @@ app.use('/upload', cors({
 app.use(require('./controllers/authControllers')); // authController 라우터 연결
 
 // 2. 구글 인증
+app.post('/auth/google/register',upload.single("profile_image"), (req, res) => {
+    // form 데이터 세션에 저장
+    req.session.oauthFormData = req.body;
+    req.session.oauthProfileImage = req.file;
+    console.log(req?.body);
+    res.json({ redirectUrl: `http://localhost:8000/auth/google` });
+});
 app.get('/auth/google', passport.authenticate('google', { 
     scope: ['profile', 'email'],
     session: true,
@@ -95,6 +107,10 @@ app.get(process.env.GOOGLE_CALLBACK_URL,
         response.redirect(`${process.env.FRONT_DOMAIN}`) //  동작 테스트 확인 필요
     }
 );
+
+app.get("/login-fail",(req,res)=>{
+    res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`) //  동작 테스트 확인 필요
+})
 
 
 
