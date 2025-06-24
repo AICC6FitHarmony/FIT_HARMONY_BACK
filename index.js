@@ -83,6 +83,9 @@ app.use('/upload', cors({
 // 1. 인증 관련 라우팅
 app.use(require('./controllers/authControllers')); // authController 라우터 연결
 
+// 2. Inbody 관련 라우팅
+app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
+
 // 2. 구글 인증
 app.get('/auth/google', passport.authenticate('google', { 
     scope: ['profile', 'email'],
@@ -96,6 +99,10 @@ app.get(process.env.GOOGLE_CALLBACK_URL,
     }
 );
 
+
+app.get('/', (request, response) => { 
+    response.send('Hello World');
+})
 
 
 // 서버 시작
