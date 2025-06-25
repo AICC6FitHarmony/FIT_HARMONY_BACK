@@ -21,29 +21,10 @@ app.use(helmet());
 
 // CORS 설정
 // cors() : 제한 없음.
-<<<<<<< HEAD
-// app.use(cors());
-
-// 개발테스트 에서 활용
-const allowedOrigins = ['http://localhost:5173'];
-app.use(cors({
-  origin: function(origin, callback){
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-  credentials: true
-}));
-
-
-=======
 app.use(cors({
     origin: 'http://localhost:5173', // React 도메인
     credentials: true
 }));
->>>>>>> 7b41cda2d9b163350741379db0944fa23792f33b
 
 // JSON 요청 본문 파싱
 app.use(express.json());
