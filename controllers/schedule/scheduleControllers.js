@@ -10,7 +10,12 @@ const schedulerControllers = [
         type : 'post',
         callback : async ({request, params}) => {
             try {
+<<<<<<< HEAD
                         
+=======
+
+                
+>>>>>>> 0c3a95e705701243f855ce69865d03d3084e49f9
 
 
                 return { 

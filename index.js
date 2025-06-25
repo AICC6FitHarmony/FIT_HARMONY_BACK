@@ -91,6 +91,10 @@ app.use(require('./controllers/authControllers')); // authController 라우터 �
 // 2. Inbody 관련 라우팅
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
 
+// 3. Schedule 관련 라우팅
+app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // inbody 라우터 연결
+
+
 // 2. 구글 인증
 app.post('/auth/google/register',upload.single("profile_image"), (req, res) => {
     // form 데이터 세션에 저장
