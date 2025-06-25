@@ -20,7 +20,22 @@ app.use(helmet());
 
 // CORS 설정
 // cors() : 제한 없음.
-app.use(cors());
+// app.use(cors());
+
+// 개발테스트 에서 활용
+const allowedOrigins = ['http://localhost:5173'];
+app.use(cors({
+  origin: function(origin, callback){
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true
+}));
+
+
 
 // JSON 요청 본문 파싱
 app.use(express.json());
@@ -85,6 +100,10 @@ app.use(require('./controllers/authControllers')); // authController 라우터 �
 
 // 2. Inbody 관련 라우팅
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
+
+// 3. Schedule 관련 라우팅
+app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // inbody 라우터 연결
+
 
 // 2. 구글 인증
 app.get('/auth/google', passport.authenticate('google', { 
