@@ -63,13 +63,13 @@ passport.use(new GoogleStrategy({
 // 세션 저장 시 사용자 ID만 저장
 passport.serializeUser((user, done) => {
     // done(error, user, info)는 Passport 내부에서 인증 결과를 전달하는 콜백
-    console.log(user);
     done(null, user?.userId,{message:"serializeUser Error"});
 });
 
 // 세션에서 ID로 사용자 정보 복원
 passport.deserializeUser(async (userId, done) => {
     try {
+        
         const res = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where USER_ID = $1', [userId]);
         done(null, res[0]);
     } catch (err) {

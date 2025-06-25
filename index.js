@@ -46,6 +46,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+
 // 권한 선언
 const ROLE = { 
     ADMIN : 'ADMIN',
@@ -80,7 +81,7 @@ app.use('/ru', authorizeRole([ROLE.ADMIN, ROLE.USER]));
 app.use('/upload', cors({
   origin: '*',
   methods: ['GET'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type'],
 }),express.static(path.join(__dirname, 'public'))); 
 
 
