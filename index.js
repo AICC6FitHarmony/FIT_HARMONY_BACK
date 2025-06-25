@@ -88,6 +88,9 @@ app.use('/upload', cors({
 // 1. 인증 관련 라우팅
 app.use(require('./controllers/authControllers')); // authController 라우터 연결
 
+// 2. Inbody 관련 라우팅
+app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
+
 // 2. 구글 인증
 app.post('/auth/google/register',upload.single("profile_image"), (req, res) => {
     // form 데이터 세션에 저장
@@ -112,6 +115,10 @@ app.get("/login-fail",(req,res)=>{
     res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`) //  동작 테스트 확인 필요
 })
 
+
+app.get('/', (request, response) => { 
+    response.send('Hello World');
+})
 
 
 // 서버 시작
