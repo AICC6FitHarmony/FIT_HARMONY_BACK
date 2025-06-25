@@ -87,7 +87,7 @@ app.use('/upload', cors({
 // Controllers 모음
 // 1. 인증 관련 라우팅
 app.use(require('./controllers/authControllers')); // authController 라우터 연결
-
+app.use("/login" , require('./routes/login/loginRoutes'));
 // 2. Inbody 관련 라우팅
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
 
