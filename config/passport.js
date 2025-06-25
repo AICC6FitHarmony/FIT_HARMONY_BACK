@@ -18,18 +18,17 @@ passport.use(new GoogleStrategy({
     passReqToCallback: true
 }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-        console.log(profile);
         const { id,displayName, emails, photos } = profile;
+        const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where EMAIL = $1', [emails[0].value]);
+
         const formData = req?.session?.oauthFormData;
-        const profile_image = req.session.oauthProfileImage;
-        // console.log(profile_image);
-        console.log(formData)
-        if(formData !== undefined){//회원가입
+        if(user.length==0 && formData !== undefined){//회원가입
+            const profile_image = req.session.oauthProfileImage;
             const query = `
             INSERT INTO "USER" (
-            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,PHONE_NUMBER,ROLE) VALUES (
-            $1, $2, $3, $4, $5, $6,$7,$8,$9
-            ) RETURNING USER_ID;
+            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE) VALUES (
+            $1, $2, $3, $4, $5, $6,$7,$8
+            ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
         `;
 
             const values = [
@@ -40,21 +39,14 @@ passport.use(new GoogleStrategy({
                 formData.height,
                 formData.weight,
                 formData.gender,
-                "01044444444",
                 "MEMBER",
             ];
-            console.log(values)
+            // console.log(values)
             const user = await sendQuery(query, values);
-
-
-
-            return done(null, user);
+            // console.log("User Login")
+            // console.log(user);
+            return done(null, user[0]);
         }
-        // console.log(profile);
-
-        // const user = await sendQuery('select id, username, role, email, profile_image from USER where user_id = $1', [id]);
-        const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where EMAIL = $1', [emails[0].value]);
-        
         
         if (user?.length > 0) {
             return done(null, user[0]); // 기존 사용자
