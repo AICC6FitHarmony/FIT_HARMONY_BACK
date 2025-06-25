@@ -55,7 +55,7 @@ passport.use(new GoogleStrategy({
         // const user = await sendQuery('select id, username, role, email, profile_image from USER where user_id = $1', [id]);
         const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where EMAIL = $1', [emails[0].value]);
         
-        console.log(user, emails[0].value)
+        
         if (user?.length > 0) {
             return done(null, user[0]); // 기존 사용자
         }else{
