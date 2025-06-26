@@ -50,14 +50,23 @@ const getUserInbodyData = async (req, res) => {
             WHERE u.user_id = $1
         `;
         
+        const inbodyTimeQuery = `
+            SELECT DISTINCT inbody_time
+            FROM inbody
+            WHERE user_id = $1
+            ORDER BY inbody_time ASC
+        `;
+
         const inbodyResult = await sendQuery(inbodyQuery, [userId, inbodyTime]);
         const inbodyStandardResult = await sendQuery(inbodyStandardQuery, [userId]);
+        const inbodyTimeResult = await sendQuery(inbodyTimeQuery, [userId]);
         
         if (inbodyResult && inbodyResult.length > 0) {
             res.status(200).json({
                 success: true,
                 inbodyResult: inbodyResult,
                 standardData: inbodyStandardResult,
+                inbodyTimeResult: inbodyTimeResult,
                 message: '사용자 Inbody 데이터 조회 성공'
             });
         } else {
