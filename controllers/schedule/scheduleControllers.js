@@ -9,10 +9,6 @@ const { sendQuery } = require('../../config/database');
 
 //  2) 통신 객체 배열 선언
 const schedulerControllers = [
-
-
-
-    
     // 캘린더용 스케쥴 데이터 조회( FullCalendar에서 요구하는 형태로 조회 )
     {
         url : '/calendar/:startTime/:endTime', 
@@ -29,15 +25,18 @@ const schedulerControllers = [
                     const selectSchedulewheres = [
                         "user_id =", 
                         "and to_char(start_time, 'YYYY-MM-DD') >=", 
-                        "and to_char(end_time, 'YYYY-MM-DD') <"
+                        "and to_char(end_time, 'YYYY-MM-DD') <",
+                        "and status in"
                     ];
                     
                     // where 절 조건 파라미터 배열
                     const selectScheduleWhereParams = [
                         userId, 
                         params.startTime, 
-                        params.endTime
+                        params.endTime,
+                        params.status
                     ];
+
                     const result = await selectCalendaSchedule(selectSchedulewheres, selectScheduleWhereParams);
 
                     return { 
@@ -52,7 +51,7 @@ const schedulerControllers = [
                     }
                 }
            } catch (error) {
-                console.log(`/schedule/requestAiSchdule error : ${error.message}`);
+                console.log(`/schedule/calendar error : ${error.message}`);
                 return {
                     message: 'error',
                     success: false
@@ -188,10 +187,18 @@ const schedulerControllers = [
 
 const selectCalendaSchedule = async (wheres, whereParams) => {
     let selectScheduleQuery = `
+        select 
+            title,
+            min(start_time) as start,
+            max(end_time) as end,
+            background_color,
+            color,
+            border_color
+        from (
             select 
                 c_ex.code_name as title,
-                s.start_time as start,
-                s.end_time as end,
+                s.start_time,
+                s.end_time,
                 c_s.description as background_color,
                 '#fff' as color,
                 '#cc0000' as border_color
@@ -211,19 +218,53 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
             on s.status = c_s.code_id
     `;
 
+    let totalInParam = [];
     if(wheres && wheres.length > 0){ // wheres가 존재하며, 길이가 1이상 일때 조건이 있다고 판단
         selectScheduleQuery += "where"
+        let whereCnt = 1;
         wheres.forEach((where, idx) => {
             // 조건절( ex1] " and user_id = " ex2] "or start_time >= ") 분리를 위해 앞에 공백 처리 + 파라미터 전달을 위한 ${1} 작성
-            selectScheduleQuery += ` ${where} $${(idx+1)}`; 
+            if(where.indexOf(' in') == -1){ // in 조건절 제외
+                selectScheduleQuery += ` ${where} $${(whereCnt)}`;
+                whereCnt ++;
+            }else{
+                if(idx < whereParams.length - 1){
+                    if(!(whereParams.params[idx] == undefined || whereParams.params[idx] == "" || whereParams.params[idx].length == 0)){
+                        selectScheduleQuery += ` ${where} (`;
+    
+                        let inParams = [];
+                        if(typeof whereParams.params[idx] == "string"){
+                            inParams = whereParams.params[idx].split(",");
+                        }else{
+                            inParams = whereParams.params[idx];
+                        }
+    
+                        inParams.forEach((item, idx) => {
+                            selectScheduleQuery += (`${idx == 0 && ','} $${whereCnt}`);
+                            whereCnt ++;
+                            totalInParam.push(item);
+                        })
+    
+    
+                        selectScheduleQuery += `)`;
+                    }
+                }
+            }
         })
     }
 
     // order by 추가
-    selectScheduleQuery += " order by start_time"
+    selectScheduleQuery += `
+                    ) a 
+                    group by title, background_color, color, border_color
+                    order by start`
+
+    whereParams = whereParams.filter( // 빈 값 제거
+        v => v !== "" && !(Array.isArray(v) && v.length === 0)
+    );
 
     if(whereParams && whereParams.length > 0){
-        return await sendQuery(selectScheduleQuery, whereParams);
+        return await sendQuery(selectScheduleQuery, [...whereParams, ...totalInParam]);
     }else{
         return await sendQuery(selectScheduleQuery);
     }

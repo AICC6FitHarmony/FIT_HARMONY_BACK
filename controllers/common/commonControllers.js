@@ -29,8 +29,6 @@ const commonControllers = [
     }
 ];
 
-
-
 //  3) 통신 객체 배열 Route 등록
 commonControllers.forEach(route => {
     initRoute(router, route);
