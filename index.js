@@ -93,7 +93,10 @@ app.use("/login" , require('./routes/login/loginRoutes'));
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
 
 // 3. Schedule 관련 라우팅
-app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // inbody 라우터 연결
+app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // scheduler 라우터 + controllers 연결
+
+// 4. Common 관련 라우팅
+app.use('/common', require('./controllers/common/commonControllers')); // scheduler 라우터 + controllers 연결
 
 
 // 2. 구글 인증
