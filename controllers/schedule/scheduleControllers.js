@@ -110,14 +110,14 @@ const schedulerControllers = [
                                 reject(`종료 코드 ${code}`);
                             }else{
                                 try {
-                                    
                                     const gptResult = JSON.parse(result);
-
                                     if(gptResult.success == 'true'){
-                                        const scheduleList = JSON.parse(gptResult.content); // 스케쥴 내용
+                                        const scheduleList = gptResult.content; // 스케쥴 내용
 
+                                        const deleteQuery = "delete from schedule where user_id = $1 and to_char(start_time, 'YYYY-MM-DD') >= to_char($2::timestamp, 'YYYY-MM-DD') and status <> 'D'";
                                         // 데이터 인서트 전 현재 + 미래데이터 제거(scheduleList[0] 의 starttime 보다 미래 starttime 데이터 제거)
-                                        const deleteSchedule = await sendQuery("delete from schedule where user_id = $1 and to_char(start_time, 'YYYY-MM-DD') >= $2 and status <> 'D'", [userId, scheduleList[0].startTime]);
+                                        const deleteSchedule = await sendQuery(deleteQuery, [userId, scheduleList[0].startTime]);
+
 
                                         // 데이터 인서트
                                         let scheduleInsertQuery = "insert into schedule ( user_id, start_time, end_time, excersise_division, excersize_cnt ) values "
@@ -130,6 +130,7 @@ const schedulerControllers = [
                                             scheduleInsertQuery += scheduleInsertItems.join();
                                             await sendQuery(scheduleInsertQuery);
                                         }
+
                                     }
                                     resolve(true);
                                 } catch (err) {
@@ -139,26 +140,11 @@ const schedulerControllers = [
                         });
                     });
                     
-                    // where 절 조건 배열
-                    const selectSchedulewheres = [
-                        "user_id =", 
-                        "and to_char(start_time, 'YYYY-MM-DD') >=", 
-                        "and to_char(end_time, 'YYYY-MM-DD') <"
-                    ];
-                    
-                    // where 절 조건 파라미터 배열
-                    const selectScheduleWhereParams = [
-                        userId, 
-                        params.startTime, 
-                        params.endTime
-                    ];
 
                     if(gptResult){ // 정상 동작 > 프론트로 정상 동작 여부 전달
                         return { 
                             message: 'success',
-                            success: true,
-                            // 데이터가 신규 적용되었으므로 일단 전달...(단, 현재 캘릭더 조건(월, 주, 현재 시간)에 맞추어 노출)
-                            data : await selectCalendaSchedule(selectSchedulewheres, selectScheduleWhereParams) 
+                            success: true
                         }
                     }else{ // 에러 발생 > 프론트로 에러 발생 전달
                         return { 
@@ -187,21 +173,12 @@ const schedulerControllers = [
 
 const selectCalendaSchedule = async (wheres, whereParams) => {
     let selectScheduleQuery = `
-        select 
-            title,
-            min(start_time) as start,
-            max(end_time) as end,
-            background_color,
-            color,
-            border_color
-        from (
             select 
                 c_ex.code_name as title,
-                s.start_time,
-                s.end_time,
+                s.start_time as start,
+                s.end_time as end,
                 c_s.description as background_color,
-                '#fff' as color,
-                '#cc0000' as border_color
+                '#fff' as color
             from schedule s
             join (
                 select *
@@ -218,7 +195,7 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
             on s.status = c_s.code_id
     `;
 
-    let totalInParam = [];
+    let totalParam = [];
     if(wheres && wheres.length > 0){ // wheres가 존재하며, 길이가 1이상 일때 조건이 있다고 판단
         selectScheduleQuery += "where"
         let whereCnt = 1;
@@ -226,45 +203,42 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
             // 조건절( ex1] " and user_id = " ex2] "or start_time >= ") 분리를 위해 앞에 공백 처리 + 파라미터 전달을 위한 ${1} 작성
             if(where.indexOf(' in') == -1){ // in 조건절 제외
                 selectScheduleQuery += ` ${where} $${(whereCnt)}`;
+                totalParam.push(whereParams[idx]); // 파라미터 전달을 위해 담아줌
                 whereCnt ++;
             }else{
-                if(idx < whereParams.length - 1){
-                    if(!(whereParams.params[idx] == undefined || whereParams.params[idx] == "" || whereParams.params[idx].length == 0)){
+
+                if(idx <= whereParams.length - 1){
+                    if(!(whereParams[idx] == undefined || whereParams[idx] == "" || whereParams[idx].length == 0)){
                         selectScheduleQuery += ` ${where} (`;
-    
                         let inParams = [];
-                        if(typeof whereParams.params[idx] == "string"){
-                            inParams = whereParams.params[idx].split(",");
+                        if(typeof whereParams[idx] == "string"){
+                            inParams = whereParams[idx].split(",");
                         }else{
-                            inParams = whereParams.params[idx];
+                            inParams = whereParams[idx];
                         }
     
                         inParams.forEach((item, idx) => {
-                            selectScheduleQuery += (`${idx == 0 && ','} $${whereCnt}`);
+                            selectScheduleQuery += (`${idx == 0 ? '' : ','} $${whereCnt}`);
                             whereCnt ++;
-                            totalInParam.push(item);
+                            totalParam.push(item); // 파라미터 전달을 위해 담아줌
                         })
     
     
-                        selectScheduleQuery += `)`;
+                        selectScheduleQuery += ` )`;
                     }
                 }
             }
+
+
         })
     }
 
     // order by 추가
     selectScheduleQuery += `
-                    ) a 
-                    group by title, background_color, color, border_color
                     order by start`
 
-    whereParams = whereParams.filter( // 빈 값 제거
-        v => v !== "" && !(Array.isArray(v) && v.length === 0)
-    );
-
     if(whereParams && whereParams.length > 0){
-        return await sendQuery(selectScheduleQuery, [...whereParams, ...totalInParam]);
+        return await sendQuery(selectScheduleQuery, totalParam);
     }else{
         return await sendQuery(selectScheduleQuery);
     }

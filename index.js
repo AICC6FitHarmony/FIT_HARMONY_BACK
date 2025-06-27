@@ -45,9 +45,9 @@ app.use(session({
   }
   
   , store: new pgSession({
-    pool: pool,
-    tableName: 'session' // 테이블 이름이 기본값이 'session'
-  }),
+        pool: pool,
+        tableName: 'session' // 테이블 이름이 기본값이 'session'
+    }),
 }));
 
 // Passport 초기화 및 세션 연동 
