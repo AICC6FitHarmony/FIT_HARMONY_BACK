@@ -10,6 +10,9 @@ const upload = require('./routes/login/uploads');
 require('./config/passport'); // Passport 설정 불러오기
 require('dotenv').config(); // 환경변수 불러오기
 
+const pgSession = require('connect-pg-simple')(session);
+const { pool } = require('./config/database');
+
 // 포트 선언
 const PORT = process.env.PORT || 8000;
 
@@ -42,6 +45,11 @@ app.use(
       secure: process.env.IS_LIVE === 'true', // HTTPS 사용 시 true
       maxAge: 1000 * 60 * 30, // 세션 30분 유효
     },
+
+    store: new pgSession({
+      pool: pool,
+      tableName: 'session', // 테이블 이름이 기본값이 'session'
+    }),
   })
 );
 
@@ -96,8 +104,11 @@ app.use('/login', require('./routes/login/loginRoutes'));
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
 
 // 3. Schedule 관련 라우팅
-app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // inbody 라우터 연결
-//4. Trainer 관련 라우팅
+app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // scheduler 라우터 + controllers 연결
+
+// 4. Common 관련 라우팅
+app.use('/common', require('./controllers/common/commonControllers')); // scheduler 라우터 + controllers 연결
+//5. Trainer 관련 라우팅
 app.use('/trainer', require('./routes/trainer/trainerRoutes')); // trainer 라우터 연결
 
 // 2. 구글 인증

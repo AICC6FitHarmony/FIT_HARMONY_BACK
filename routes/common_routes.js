@@ -14,7 +14,7 @@ const initRoute = (router, {url, callback, type, upload, auth}) => {
         }
         // 4차 수정 - 거의 완성일 듯
         // 5차 수정 - multer 업로드 적용
-        router[connType](url, auth || upload || [], (request, response) => {
+        router[connType](url, auth || [], upload || [], (request, response) => {
             getBaseController({
                 request : request ,
                 response : response, 
