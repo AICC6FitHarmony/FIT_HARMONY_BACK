@@ -108,6 +108,7 @@ app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // 
 
 // 4. Common 관련 라우팅
 app.use('/common', require('./controllers/common/commonControllers')); // scheduler 라우터 + controllers 연결
+
 //5. Trainer 관련 라우팅
 app.use('/trainer', require('./routes/trainer/trainerRoutes')); // trainer 라우터 연결
 
