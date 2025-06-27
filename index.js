@@ -11,6 +11,9 @@ require('./config/passport'); // Passport 설정 불러오기
 require('dotenv').config(); // 환경변수 불러오기
 
 
+const pgSession = require('connect-pg-simple')(session);
+const { pool } = require('./config/database')
+
 // 포트 선언
 const PORT = process.env.PORT || 8000;
 
@@ -40,9 +43,14 @@ app.use(session({
     secure: (process.env.IS_LIVE === 'true'),  // HTTPS 사용 시 true
     maxAge: 1000 * 60 * 30 // 세션 30분 유효
   }
+  
+  , store: new pgSession({
+    pool: pool,
+    tableName: 'session' // 테이블 이름이 기본값이 'session'
+  }),
 }));
 
-// Passport 초기화 및 세션 연동
+// Passport 초기화 및 세션 연동 
 app.use(passport.initialize());
 app.use(passport.session());
 
