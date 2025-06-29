@@ -6,6 +6,7 @@ const { spawn } = require('child_process'); // nodejs > python script 동작? �
 const path = require('path');
 const dotenv = require('dotenv'); // require 메서드로 dotenv 모듈을 불러와서 환경 변수를 로드한다.
 const { sendQuery } = require('../../config/database');
+const ROLE = require("../../config/ROLE"); // ROLE 구분 정보 객체
 
 //  2) 통신 객체 배열 선언
 const schedulerControllers = [
@@ -17,8 +18,22 @@ const schedulerControllers = [
            try {
                 if(request.isAuthenticated()){
                     let userId = request.user.userId; // 디폴트는 로그인한 사람 데이터 조회
-                    if(params.userId){ // querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
-                        userId = params.userId;
+                    
+                    if(request.user.role == ROLE.TRAINER){ // 강사인 경우만 회원 데이터 조회 가능
+                        // /trainer 로 접근 했고, querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
+                        if(request.originalUrl.startsWith('/trainer') && params.userId){ 
+                            userId = params.userId;
+
+                            // 매칭이 성사된 사용자(승인) 데이터만 조회 할 수 있도록 제한
+                            // 승인 코드 확인 할 것...
+                            const buyUser = await sendQuery("select user_id from buy where user_id = $1 and status = 'C'", [userId]);
+                            if(buyUser == undefined || buyUser.length < 1){
+                                return {
+                                    message: 'noBuyer',
+                                    success: false
+                                }
+                            }
+                        }
                     }
 
                     // where 절 조건 배열
@@ -168,17 +183,57 @@ const schedulerControllers = [
 
         }   
     },
-];
 
+
+    // AI 스케쥴러 작성 요청
+    {
+        url : '/updateSchedule', 
+        type : 'patch',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    if(!params.scheduleId || !params.status){
+                        return {
+                            message: 'noParam',
+                            success: false
+                        }
+                    }
+
+                    const userId = request.user.userId;
+                    const result = await sendQuery("update schedule set status = $3 where user_id = $1 and schedule_id = $2", [userId, params.scheduleId, params.status])
+                    
+                    return { 
+                        message: 'success',
+                        success: true
+                    }
+                }else{ // 비인증 접근 > 프론트로 비인증 여부 전달
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/schedule/requestAiSchdule error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+
+        }   
+    },
+];
 
 const selectCalendaSchedule = async (wheres, whereParams) => {
     let selectScheduleQuery = `
-            select 
+            select
+                schedule_id,
                 c_ex.code_name as title,
                 s.start_time as start,
                 s.end_time as end,
                 c_s.description as background_color,
-                '#fff' as color
+                '#fff' as color,
+                s.status
             from schedule s
             join (
                 select *
@@ -190,7 +245,6 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
                 select * 
                 from code_detail
                 where code_class = 'C002'
-
             ) c_s
             on s.status = c_s.code_id
     `;
