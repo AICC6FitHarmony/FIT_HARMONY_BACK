@@ -135,17 +135,44 @@ const getComments = async (req, res)=>{
   try {
     const comments = await sendQuery(
       `
-      select post_id, user_id, content, parent_comment_id, path, depth, created_time, updated_time 
+      select comment_id, post_id, nick_name, user_id, content, parent_comment_id, path, depth, created_time, updated_time 
       from comment
       left join (select nick_name, user_id as usr_id from "USER") as usr
       on comment.user_id = usr.usr_id
-      where post_id = $1
+      where post_id = $1 and is_deleted = false
+      order by created_time asc
       `,[postId]
     );
     res.json(comments);
   } catch (error) {
     res.json({msg:error, success:false});
   }
+}
+
+const deleteComment = async (req,res) => {
+  if (req.isAuthenticated() == false){
+    return res.json({msg:"회원이 아닙니다."});
+  }
+  const {userId:authId} = req.user;
+  const {userId:reqId, commentId} = req.body;
+  // console.log(req.body);
+  if(authId !== reqId){
+    res.json({msg:"권한이 없습니다1.", success:false});
+    return;
+  }
+
+  const target = await sendQuery(`select user_id from comment where comment_id = $1`,[commentId]);
+  if(target.length ===0)
+    return res.json({msg:"존재하지 않는 게시글 입니다.", success:false});
+  const dbUser = target[0].userId;
+  // console.log(target);
+  // console.log(authId, reqId, dbUser)
+  if(authId !== dbUser){
+    res.json({msg:"권한이 없습니다.", success:false});
+    return;
+  }
+  await sendQuery(`update comment set is_deleted = $1 where comment_id = $2`,[true,commentId]);
+  res.json({msg:"삭제가 완료되었습니다.", success:true});
 }
 
 const createComment = async (req,res)=>{
@@ -155,16 +182,16 @@ const createComment = async (req,res)=>{
   try {
     const form = req.body;
     const {user} = req;
-    const {board_id, content,parent_id} = form;
+    const {post_id, content,parent_comment_id} = form;
     const {userId} = user;
     const path = "/";
     const depth = 1;
-    // console.log(content)
-    posts = await sendQuery("insert into post(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7)",
-      [userId, board_id, content,parent_id, path, depth,false]);
+    console.log(content)
+    await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7)",
+      [userId, post_id, content,parent_comment_id, path, depth,false]);
     // console.log(posts);
 
-    res.json({msg:"작성이 완료되었습니다.", postId : posts[0].postId, success: true});
+    res.json({msg:"작성이 완료되었습니다.", success: true});
   } catch (error) {
     res.json({msg:"작성이 실패", success: false});
   }
@@ -172,4 +199,4 @@ const createComment = async (req,res)=>{
 }
 
 
-module.exports = {getPosts,getPost,createPost,deletePost, getComments, createComment};
+module.exports = {getPosts,getPost,createPost,deletePost, getComments, createComment, deleteComment};
