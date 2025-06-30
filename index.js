@@ -7,9 +7,14 @@ const helmet = require('helmet'); // Express 앱에 보안 관련 HTTP 헤더를
 const path = require('path'); // 경로 관련 모듈
 const cmmn = require('./config/cmmn'); // 공통 활용 기능 로드
 const upload = require('./routes/login/uploads');
+const ROLE = require("./config/ROLE"); // ROLE 구분 정보 객체
+
 require('./config/passport'); // Passport 설정 불러오기
 require('dotenv').config(); // 환경변수 불러오기
 
+
+const pgSession = require('connect-pg-simple')(session);
+const { pool } = require('./config/database')
 
 // 포트 선언
 const PORT = process.env.PORT || 8000;
@@ -40,38 +45,47 @@ app.use(session({
     secure: (process.env.IS_LIVE === 'true'),  // HTTPS 사용 시 true
     maxAge: 1000 * 60 * 30 // 세션 30분 유효
   }
+  
+  , store: new pgSession({
+        pool: pool,
+        tableName: 'session' // 테이블 이름이 기본값이 'session'
+    }),
 }));
 
-// Passport 초기화 및 세션 연동
+// Passport 초기화 및 세션 연동 
 app.use(passport.initialize());
 app.use(passport.session());
 
 
-// 권한 선언
-const ROLE = { 
-    ADMIN : 'ADMIN',
-    USER : 'USER'
-}
 // 로그인 여부 및 역할 권한 확인
 const authorizeRole = (roles) => {
     return (request, response, next) => {
         if (!request.isAuthenticated || !request.isAuthenticated()) {
-            response.status(401).json({ message: '로그인이 필요합니다.' });
-        }
-
-        if (roles.contains(req.user.role)) {
+            return response.status(401).json({ message: '로그인이 필요합니다.' });
+        }else if (!roles.includes(request.user.role)) {
             return response.status(403).json({ message: `권한이 없습니다.` });
         }
         return next();
     };
 }
 
-// 공통 모든 접근은 선언 X
-// 모든 /admin/* 경로에 ADMIN 권한 필수
-app.use('/admin', authorizeRole([ROLE.ADMIN]));
 
-// 모든 /ru/* 경로에 ADMIN 권한 필수
-app.use('/ru', authorizeRole([ROLE.ADMIN, ROLE.USER]));
+// 접근 권한 부여
+const adminAuthRole = [ROLE.ADMIN];
+const trainerAuthRole = [ROLE.TRAINER];
+const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
+// 0. 공통 모든 접근은 선언 X
+// 1-1. /admin 접근 권한 부여(관리자 접근 권한)
+app.use('/admin', authorizeRole(adminAuthRole));
+// 1-2 /trainer 접근 권한 부여(트레이너 권한) : 관리자도 접근 불가
+app.use('/trainer', authorizeRole(trainerAuthRole));
+
+// 2. /schedule 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
+app.use('/schedule', authorizeRole(totalAuthUserRole));
+app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
+
+// 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
+app.use('/inbody', authorizeRole(totalAuthUserRole));
 
 
 
