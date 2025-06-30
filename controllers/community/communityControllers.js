@@ -135,12 +135,18 @@ const getComments = async (req, res)=>{
   try {
     const comments = await sendQuery(
       `
-      select comment_id, post_id, nick_name, user_id, content, parent_comment_id, path, depth, created_time, updated_time 
-      from comment
+      select comment_id, post_id, nick_name, user_id, content, is_deleted, parent_comment_id, path, depth, created_time, updated_time 
+      from comment c
       left join (select nick_name, user_id as usr_id from "USER") as usr
-      on comment.user_id = usr.usr_id
-      where post_id = $1 and is_deleted = false
-      order by created_time asc
+      on c.user_id = usr.usr_id
+      where post_id = $1 
+        and (is_deleted = false OR 
+            EXISTS (
+            SELECT 1
+            FROM comment child
+            WHERE child.parent_comment_id = c.comment_id
+        ))
+      order by path
       `,[postId]
     );
     res.json(comments);
@@ -184,15 +190,42 @@ const createComment = async (req,res)=>{
     const {user} = req;
     const {post_id, content,parent_comment_id} = form;
     const {userId} = user;
-    const path = "/";
-    const depth = 1;
     console.log(content)
+    const parentInfo = {
+      path : "", depth:0, child_cnt:0
+    }
+
+    if(parent_comment_id){
+      const parent_res = await sendQuery(`
+        select path, depth from comment where comment_id = $1
+        `,[parent_comment_id]);
+      parentInfo.path = parent_res[0].path;
+      parentInfo.depth = parent_res[0].depth;
+  
+      const child_res = await sendQuery(`
+        select (count(*) + 1) as child_num from comment where parent_comment_id = $1
+        `,[parent_comment_id]);
+      
+      parentInfo.child_cnt = child_res[0].childNum;
+    }else{
+      const child_res = await sendQuery(`
+        select (count(*) + 1) as child_num from comment where post_id = $1 and parent_comment_id is null
+        `,[post_id]);
+      parentInfo.child_cnt = child_res[0].childNum;
+    }
+    console.log(parentInfo);
+    const path = `${parentInfo.path} ${parentInfo.child_cnt.toString().padStart(4,'0')}`.trim();
+    const depth = parentInfo.depth +1;
+    
+    console.log(path,depth);
+
     await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7)",
       [userId, post_id, content,parent_comment_id, path, depth,false]);
     // console.log(posts);
 
     res.json({msg:"작성이 완료되었습니다.", success: true});
   } catch (error) {
+    console.log(error)
     res.json({msg:"작성이 실패", success: false});
   }
   
