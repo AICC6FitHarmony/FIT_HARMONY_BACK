@@ -85,7 +85,7 @@ app.use('/schedule', authorizeRole(totalAuthUserRole));
 app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
 
 // 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
-app.use('/inbody', authorizeRole(totalAuthUserRole));
+// app.use('/inbody', authorizeRole(totalAuthUserRole));
 
 
 

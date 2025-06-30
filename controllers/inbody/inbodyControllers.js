@@ -1,12 +1,10 @@
 const { sendQuery } = require('../../config/database');
 
 // 특정 사용자의 Inbody 데이터 조회
-const getUserInbodyData = async (req, res) => {
+const getUserInbodyDayData = async (req, res) => {
     try {
         const { userId } = req.params;
         const { inbodyTime } = req.query;
-        console.log("req.query : ", req.query);
-        console.log("inbodyTime : ", inbodyTime);
         // 최근 인바디 데이터 조회
         const inbodyQuery = `
             SELECT 
@@ -17,6 +15,7 @@ const getUserInbodyData = async (req, res) => {
                 PROTEIN,
                 BODY_MINERAL,
                 BODY_FAT,
+                BODY_FAT_PERCENT,
                 BMI,
                 SKELETAL_MUSCLE,
                 TRUNK_MUSCLE,
@@ -84,6 +83,40 @@ const getUserInbodyData = async (req, res) => {
     }
 };
 
+const getUserInbodyMonthData = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { inbodyMonthTime } = req.query;
+        const inbodyTimeQuery = `
+            SELECT TO_CHAR(inbody_time, 'YYYY-MM-dd') as inbody_time
+            FROM inbody
+            WHERE user_id = $1
+            AND TO_CHAR(inbody_time, 'YYYY-MM') = $2
+            ORDER BY INBODY_TIME DESC
+        `;
+        const inbodyTimeResult = await sendQuery(inbodyTimeQuery, [userId ,inbodyMonthTime]);
+        
+        if (inbodyTimeResult && inbodyTimeResult.length > 0) {
+            console.log("inbodyTimeResult : ", inbodyTimeResult);
+            res.status(200).json({
+                inbodyTimeResult: inbodyTimeResult
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: '해당 사용자의 Inbody 데이터가 없습니다'
+            });
+        }
+    } catch (error) {
+        console.error('사용자 Inbody 데이터 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 오류가 발생했습니다'
+        });
+    }
+};
+
 module.exports = {
-    getUserInbodyData
+    getUserInbodyDayData,
+    getUserInbodyMonthData
 }; 
