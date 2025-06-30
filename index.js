@@ -113,6 +113,9 @@ app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // 
 app.use('/common', require('./controllers/common/commonControllers')); // scheduler 라우터 + controllers 연결
 
 
+// Community 관련 라우팅
+app.use('/community', require("./routes/community/communityRoutes"));
+
 // 2. 구글 인증
 app.post('/auth/google/register',upload.single("profile_image"), (req, res) => {
     // form 데이터 세션에 저장
@@ -129,7 +132,7 @@ app.get('/auth/google', passport.authenticate('google', {
 app.get(process.env.GOOGLE_CALLBACK_URL,
     passport.authenticate('google', { failureRedirect: '/login-fail' }), (request, response) => {
         // 세션 저장 후 프론트에서 인증 확인 가능
-        response.redirect(`${process.env.FRONT_DOMAIN}`) //  동작 테스트 확인 필요
+        response.redirect(`${process.env.FRONT_DOMAIN}/auth/google/result`) //  동작 테스트 확인 필요
     }
 );
 
