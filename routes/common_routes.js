@@ -14,7 +14,7 @@ const initRoute = (router, {url, callback, type, upload, auth}) => {
         }
         // 4차 수정 - 거의 완성일 듯
         // 5차 수정 - multer 업로드 적용
-        router[connType](url, auth || upload || [], (request, response) => {
+        router[connType](url, auth || [], upload || [], (request, response) => {
             getBaseController({
                 request : request ,
                 response : response, 
@@ -39,12 +39,24 @@ const initRoute = (router, {url, callback, type, upload, auth}) => {
 const getBaseController = async ({request, response, callback, params}) => {
     try {
         const result = await callback({request, response, params});
-        return respToJson(response, 200, result);
+
+        if (result && result.isFile && result.filePath) {
+            // response sendFile 처리 시 CORS 에러가 발생해서 헤더 추가 처리
+            response.setHeader('Access-Control-Allow-Origin', process.env.FRONT_DOMAIN);
+            response.setHeader('Access-Control-Allow-Credentials', 'true');
+            response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            
+            return response.sendFile(result.filePath);
+        } else {
+            return respToJson(response, 200, result);
+        }
     } catch (error) {
         console.log(`getBaseController error : ${error.message}`);
-        return respToJson(response, 500, {
-            message : 'Error getBaseController : ' + error.message
-        });
+        // 굳이 별도의 처리 없어도 될듯? 없는게 에러 안나네?
+        // return respToJson(response, 500, {
+        //     message : 'Error getBaseController : ' + error.message
+        // });
     }
 }
 
@@ -56,6 +68,7 @@ const getParams = (request) => {
     const params = request.params;
     const body = request.body;
     const file = request.file;
+    const files = request.files;
 
     for(const key in query){
         param[key] = query[key];
@@ -71,6 +84,10 @@ const getParams = (request) => {
 
     if(file != undefined){
         param.file = file;
+    }
+
+    if(files != undefined){
+        param.files = files;
     }
     // params == {} 는 정상적으로 비교되지 않으므로, key 개수가 0인지를 확인해서 처리
     // Object.keys(param).length

@@ -1,78 +1,38 @@
 const { sendQuery } = require('../../config/database');
 
-// 특정 사용자의 Inbody 데이터 조회
-const getUserInbodyDayData = async (req, res) => {
+// 특정 사용자의 user 데이터 조회
+const getUserData = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { inbodyTime } = req.query;
         console.log("userId", userId);
-        console.log("inbodyTime", inbodyTime);
-        // 최근 인바디 데이터 조회
-        const inbodyQuery = `
+
+        const userQuery = `
             SELECT 
-                INBODY_ID,
-                WEIGHT,
-                BODY_WATER,
-                INBODY_SCORE,
-                PROTEIN,
-                BODY_MINERAL,
-                BODY_FAT,
-                BODY_FAT_PERCENT,
-                BMI,
-                SKELETAL_MUSCLE,
-                TRUNK_MUSCLE,
-                LEFT_ARM_MUSCLE,
-                RIGHT_ARM_MUSCLE,
-                LEFT_LEG_MUSCLE,
-                RIGHT_LEG_MUSCLE,
-                TRUNK_FAT,
-                LEFT_ARM_FAT,
-                RIGHT_ARM_FAT,
-                LEFT_LEG_FAT,
-                RIGHT_LEG_FAT,
-                INBODY_TIME
-            FROM inbody i
-            WHERE i.user_id = $1
-            AND (CAST($2 AS date) = '1000-01-01' OR i.inbody_time = CAST($2 AS date))
-            ORDER BY INBODY_TIME DESC
-            LIMIT 1
-        `;
-      
-        const inbodyStandardQuery = `
-            SELECT i.item_name, i.min_value, i.max_value
-            FROM inbody_standard i
-            JOIN "USER" u ON
-	            u.age BETWEEN 
-                    CAST(split_part(i.age_group, '_', 1) AS INTEGER)
-                    AND
-                    CAST(split_part(i.age_group, '_', 2) AS INTEGER)
-	            AND
-                u.gender = i.gender
+                user_name,
+                email,
+                nick_name,
+                phone_number,
+                age,
+                height,
+                weight,
+                fit_history,
+                fit_goal,
+                introduction
+            FROM "USER"
             WHERE u.user_id = $1
         `;
-        
-        const inbodyTimeQuery = `
-            SELECT DISTINCT inbody_time
-            FROM inbody
-            WHERE user_id = $1
-            ORDER BY inbody_time ASC
-        `;
 
-        const inbodyResult = await sendQuery(inbodyQuery, [userId, inbodyTime]);
-        const inbodyStandardResult = await sendQuery(inbodyStandardQuery, [userId]);
-        const inbodyTimeResult = await sendQuery(inbodyTimeQuery, [userId]);
+        const userResult = await sendQuery(userQuery, [userId]);
         
         // inbodyResult가 비어있어도 200 상태로 응답
         res.status(200).json({
             success: true,
             credentials: 'include',
-            inbodyResult: inbodyResult || [],
-            standardData: inbodyStandardResult || [],
-            inbodyTimeResult: inbodyTimeResult || [],
-            message: inbodyResult && inbodyResult.length > 0 ? '사용자 Inbody 데이터 조회 성공' : '해당 사용자의 Inbody 데이터가 없습니다'
+            userResult: userResult || [],
+            message: userResult && userResult.length > 0 ? 'success' : 'fail'
         });
     } catch (error) {
-        console.error('사용자 Inbody 데이터 조회 오류:', error);
+        console.error('사용자 데이터 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '서버 오류가 발생했습니다'

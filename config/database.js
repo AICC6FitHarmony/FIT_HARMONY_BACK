@@ -17,10 +17,10 @@ const sendQuery = async (query, params) => {
     try {
         const result = await pool.query(query, params);
         // DB 조회시 _로 분할된 컬럽명을 카멜케이스로 변환
-        return camelcaseKeys(result.rows, { deep: true });;
+        return camelcaseKeys(result.rows, { deep: true });
     } catch (error) {
         console.log(error);
-        return null;
+        throw error;
     }
 }
 
