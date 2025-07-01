@@ -37,7 +37,7 @@ app.use(express.json());
 // 세션 설정: 메모리 기반 세션
 app.use(session({
   secret: process.env.SESSION_SECRET, // .env에서 비밀키 사용
-  resave: false, // 매 요청마다 세션 저장 안함
+  resave: true, // 매 요청마다 세션 저장
 //   saveUninitialized: false, // 초기화되지 않은 세션 저장 안함
   saveUninitialized: true, // 회원가입시 form 저장
   cookie: {
@@ -85,13 +85,15 @@ app.use('/schedule', authorizeRole(totalAuthUserRole));
 app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
 
 // 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
-// app.use('/inbody', authorizeRole(totalAuthUserRole));
+app.use('/inbody', authorizeRole(totalAuthUserRole));
+app.use('/mypage', authorizeRole(totalAuthUserRole));
 
 
 
 // 정적 경로 적용. : 
 // route로 인하여 선언된 URL PATH로만 접근이 가능하기 때문에
 // 업로드한 FILE 등 기타 정적으로 접근이 필요한 경우 다음과 같이 선언
+// 다음과 같이 설정 시 public 디렉토리를 url : "/upload" 로 접근
 app.use('/upload', cors({
   origin: '*',
   methods: ['GET'],
