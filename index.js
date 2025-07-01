@@ -84,7 +84,7 @@ const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
 // 1-1. /admin 접근 권한 부여(관리자 접근 권한)
 app.use('/admin', authorizeRole(adminAuthRole));
 // 1-2 /trainer 접근 권한 부여(트레이너 권한) : 관리자도 접근 불가
-app.use('/trainer', authorizeRole(trainerAuthRole));
+app.use('/trainer', authorizeRole(totalAuthUserRole));
 
 // 2. /schedule 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/schedule', authorizeRole(totalAuthUserRole));
