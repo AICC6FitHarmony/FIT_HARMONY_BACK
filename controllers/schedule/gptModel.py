@@ -219,6 +219,11 @@ from datetime import datetime, timedelta
 import logging
 import re
 import difflib
+from PIL import Image
+import base64
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # ---------------- 설정 ----------------
 logging.basicConfig(
@@ -229,6 +234,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
 
 load_dotenv()
 
@@ -274,15 +280,19 @@ def extract_json(text):
 
 # ---------------- DB 조회 ----------------
 class DBAgent:
+    def conn(self) :
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
+        return conn
+    
     def get_activity_list(self):
         try:
-            conn = psycopg2.connect(
-                host=DB_HOST,
-                port=DB_PORT,
-                dbname=DB_NAME,
-                user=DB_USER,
-                password=DB_PASSWORD
-            )
+            conn = self.conn()
             cur = conn.cursor()
             cur.execute("""
                 SELECT CODE_ID, CODE_NAME, DESCRIPTION 
@@ -310,15 +320,94 @@ class DBAgent:
             return activities
         except Exception as e:
             error_except("DB 연결 실패: " + str(e))
-
+    
+    def get_file_info(self) : 
+        try:
+            conn = self.conn()
+            cur = conn.cursor()
+            cur.execute(f"""
+                SELECT FILE_PATH
+                FROM FILE 
+                WHERE FILE_ID = {prompt}
+            """)
+            row = cur.fetchone()
+            return row[0]
+        except Exception as e:
+            error_except("DB 연결 실패: " + str(e))
+            
+            
+            
 # ---------------- 실행 흐름 ----------------
 def run():
     if len(sys.argv) < 5:
         return error_except("파라미터가 부족합니다.")
 
-    if div != "schedule":
+    if div == "schedule":
+        gpt_schedule()
+    elif div == "diet" :
+        get_diet()
+    else :
         return error_except("지원하지 않는 작업 구분입니다.")
 
+
+def get_diet() : 
+    file_path = DBAgent().get_file_info()
+    base64_image = resize_and_encode_image(file_path)
+    result = analyze_food_image(base64_image)
+    
+    logging.info(" =============== gpt_model get_diet ============= ")
+    logging.info(result)
+    
+    print(json.dumps({"success": "true", "content": result}, ensure_ascii=False))
+    
+    
+def resize_and_encode_image(file_path: str, max_size=(768, 768)) -> str:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+    normalized_path = file_path.lstrip('/')
+    image_path = os.path.join(base_dir, normalized_path)
+    
+    img = Image.open(image_path)
+    img.thumbnail(max_size)  # 크기 비율 유지하면서 축소
+    buffered = io.BytesIO()
+    img.save(buffered, format="JPEG")
+    img_bytes = buffered.getvalue()
+    return base64.b64encode(img_bytes).decode("utf-8")
+
+def analyze_food_image(base64_image: str) -> dict:
+    response = openai.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "당신은 음식 이미지 분석 전문가입니다. 주어진 이미지를 보고 음식 이름, 주요 토핑, 예상 칼로리를 JSON 형식으로 반환하세요. 데이터는 음식만 반환해주세요. 내용은 한국어로 작성해주세요.\n"
+                    "결과는 반드시 다음 형식의 배열 JSON String 형태로 제공하세요: [{\"name\": \"음식명\", \"topping\": [\"토핑1\", ...], \"totalCal\": 숫자] 음식이 하나도 없으면 []와 같이 빈 배열 JSON String 형태로 제공해주세요.JSON String 형태 외 문자열은 아무것도 작성하지마세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        },
+                    }
+                ],
+            },
+        ],
+        max_tokens=300,
+    )
+    result = re.sub(r'```(?:json)?\s*([\s\S]*?)\s*```', r'\1', response.choices[0].message.content).strip()
+    logging.info("================ analyze_food_image ==================")
+    logging.info(result)
+    return result
+    
+    
+    
+
+# schedule
+def gpt_schedule() :
     profile = json.loads(data)
     age = profile.get("age")
     height = profile.get("height")
@@ -420,6 +509,8 @@ def run():
             })
 
     print(json.dumps({"success": "true", "content": final_schedule}, ensure_ascii=False))
+
+
 
 # ---------------- 에러 처리 ----------------
 def error_except(message):
