@@ -26,10 +26,14 @@ passport.use(new GoogleStrategy({
             const profile_image = req.session.oauthProfileImage;
             const query = `
             INSERT INTO "USER" (
-            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE) VALUES (
-            $1, $2, $3, $4, $5, $6,$7,$8
+            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL) VALUES (
+            $1, $2, $3, $4, $5, $6,$7,$8,$9
             ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
         `;
+
+            if(formData.role !=="MEMBER" && formData.role !=="TRAINER"){
+                return done(null, false, {message:"허가되지 않은 권한", success:false})
+            }
 
             const values = [
                 displayName,
@@ -39,7 +43,8 @@ passport.use(new GoogleStrategy({
                 formData.height,
                 formData.weight,
                 formData.gender,
-                "MEMBER",
+                formData.role,
+                formData.goal
             ];
             // console.log(values)
             const user = await sendQuery(query, values);
@@ -56,7 +61,7 @@ passport.use(new GoogleStrategy({
         }
     } catch (err) {
         console.log(err);
-        return done(null, {message : '인증 중 에러가 발생하였습니다.', success:false});
+        return done(null,false, {message : '인증 중 에러가 발생하였습니다.', success:false});
     }
 }));
 
