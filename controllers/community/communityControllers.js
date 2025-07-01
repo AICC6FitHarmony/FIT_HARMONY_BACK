@@ -238,7 +238,7 @@ const createComment = async (req,res)=>{
       parentInfo.child_cnt = child_res[0].childNum;
     }
     console.log(parentInfo);
-    const path = `${parentInfo.path} ${parentInfo.child_cnt.toString().padStart(4,'0')}`.trim();
+    const path = `${parentInfo.path} ${parentInfo.child_cnt.toString().padStart(2,'0')}`.trim();
     const depth = parentInfo.depth +1;
     
     console.log(path,depth);
