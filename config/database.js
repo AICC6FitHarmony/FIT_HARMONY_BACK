@@ -20,7 +20,7 @@ const sendQuery = async (query, params) => {
         return camelcaseKeys(result.rows, { deep: true });
     } catch (error) {
         console.log(error);
-        return null;
+        throw error;
     }
 }
 
