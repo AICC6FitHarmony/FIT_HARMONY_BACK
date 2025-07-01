@@ -27,7 +27,7 @@ app.use(helmet());
 // CORS 설정
 // cors() : 제한 없음.
 app.use(cors({
-    origin: 'http://localhost:5173', // React 도메인
+    origin: process.env.FRONT_DOMAIN, // React 도메인
     credentials: true
 }));
 
@@ -75,6 +75,9 @@ const adminAuthRole = [ROLE.ADMIN];
 const trainerAuthRole = [ROLE.TRAINER];
 const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
 // 0. 공통 모든 접근은 선언 X
+// 0-1. 파일 업로드 관련 기능은 권한 조건 처리
+app.use('/common/file', authorizeRole(totalAuthUserRole)); 
+
 // 1-1. /admin 접근 권한 부여(관리자 접근 권한)
 app.use('/admin', authorizeRole(adminAuthRole));
 // 1-2 /trainer 접근 권한 부여(트레이너 권한) : 관리자도 접근 불가
@@ -107,6 +110,7 @@ app.use(require('./controllers/authControllers')); // authController 라우터 �
 app.use("/login" , require('./routes/login/loginRoutes'));
 // 2. Inbody 관련 라우팅
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
+app.use('/mypage', require('./routes/mypage/mypageRoutes')); // mypage 라우터 연결
 
 // 3. Schedule 관련 라우팅
 app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // scheduler 라우터 + controllers 연결
