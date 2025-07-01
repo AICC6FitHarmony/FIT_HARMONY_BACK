@@ -27,7 +27,7 @@ app.use(helmet());
 // cors() : 제한 없음.
 app.use(
   cors({
-    origin: 'http://localhost:5173', // React 도메인
+    origin: process.env.FRONT_DOMAIN, // React 도메인
     credentials: true,
   })
 );
@@ -81,6 +81,9 @@ const adminAuthRole = [ROLE.ADMIN];
 const trainerAuthRole = [ROLE.TRAINER];
 const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
 // 0. 공통 모든 접근은 선언 X
+// 0-1. 파일 업로드 관련 기능은 권한 조건 처리
+app.use('/common/file', authorizeRole(totalAuthUserRole));
+
 // 1-1. /admin 접근 권한 부여(관리자 접근 권한)
 app.use('/admin', authorizeRole(adminAuthRole));
 // 1-2 /trainer 접근 권한 부여(트레이너 권한) : 관리자도 접근 불가
@@ -91,11 +94,13 @@ app.use('/schedule', authorizeRole(totalAuthUserRole));
 app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
 
 // 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
-// app.use('/inbody', authorizeRole(totalAuthUserRole));
+app.use('/inbody', authorizeRole(totalAuthUserRole));
+app.use('/mypage', authorizeRole(totalAuthUserRole));
 
 // 정적 경로 적용. :
 // route로 인하여 선언된 URL PATH로만 접근이 가능하기 때문에
 // 업로드한 FILE 등 기타 정적으로 접근이 필요한 경우 다음과 같이 선언
+// 다음과 같이 설정 시 public 디렉토리를 url : "/upload" 로 접근
 app.use(
   '/upload',
   cors({

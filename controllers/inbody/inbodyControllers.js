@@ -170,6 +170,14 @@ const insertInbodyData = async (req, res) => {
             ) RETURNING inbody_id
         `;
 
+        // 사용자 몸무게 수정
+        const updateUserQuery = `
+        UPDATE "USER" u
+        SET weight = $1
+        WHERE u.user_id = $2
+        RETURNING u.user_id
+        `;
+
         const values = [
             userId,
             weight,
@@ -194,9 +202,12 @@ const insertInbodyData = async (req, res) => {
             inbodyTime
         ];
 
-        const result = await sendQuery(insertQuery, values);
+        const userValues = [weight, userId];
 
-        if (result && result.length > 0) {
+        const result = await sendQuery(insertQuery, values);
+        const userResult = await sendQuery(updateUserQuery, userValues);
+
+        if (result && result.length > 0 && userResult && userResult.length > 0) {
             res.status(201).json({
                 success: true,
                 message: '인바디 데이터가 성공적으로 등록되었습니다',
@@ -243,7 +254,7 @@ const updateInbodyData = async (req, res) => {
             inbodyTime
         } = req.body;
 
-        const updateQuery = `
+        const updateInbodyQuery = `
             UPDATE inbody SET (
                 weight,
                 body_water,
@@ -271,7 +282,19 @@ const updateInbodyData = async (req, res) => {
             RETURNING inbody_id
         `;
 
-        const values = [
+        // 사용자 몸무게 수정
+        const updateUserQuery = `
+        UPDATE "USER" u
+        SET weight = (
+            SELECT weight
+            FROM INBODY i
+            WHERE i.user_id = u.user_id
+        	AND i.inbody_id = $1
+        	ORDER BY inbody_time desc
+        	LIMIT 1
+            ) RETURNING u.user_id`;
+
+        const inbodyValues = [
             inbodyId,
             weight,
             bodyWater,
@@ -295,9 +318,12 @@ const updateInbodyData = async (req, res) => {
             inbodyTime
         ];
 
-        const result = await sendQuery(updateQuery, values);
+        const userValues = [inbodyId];
 
-        if (result && result.length > 0) {
+        const result = await sendQuery(updateInbodyQuery, inbodyValues);
+        const userResult = await sendQuery(updateUserQuery, userValues);
+
+        if (result && result.length > 0 && userResult && userResult.length > 0) {
             res.status(201).json({
                 success: true,
                 message: '인바디 데이터가 성공적으로 수정되었습니다',
