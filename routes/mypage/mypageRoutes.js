@@ -6,8 +6,8 @@ const { getUserData } = require('../../controllers/mypage/mypageControllers');
 // const { authenticateToken } = require('../../middleware/auth');
 
 /**
- * @route   GET /inbody/:userId?inbodyTime=:inbodyTime
- * @desc    특정 사용자의 Inbody 일일 데이터 조회
+ * @route   GET /mypage/:userId
+ * @desc    특정 사용자의 데이터 조회
  * @access  Public (또는 Private - 인증 필요시)
  */
 router.get('/:userId', getUserData);
