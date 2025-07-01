@@ -25,7 +25,8 @@ const getPosts = async (req,res)=>{
         from post
         left join (select nick_name,user_name, user_id as usr_id from "USER") as usr
         on usr.usr_id = post.user_id
-        where is_deleted = FALSE;
+        where is_deleted = FALSE
+        order by post_id desc
         `
       );
       console.log("all",posts);
@@ -42,6 +43,7 @@ const getPosts = async (req,res)=>{
       select post_id, user_id, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
       from post
       where is_deleted = false and category_id = $1
+      order by post_id desc
       `,[board_id]
     );
     console.log(posts);
@@ -128,6 +130,28 @@ const deletePost = async (req,res)=>{
   }
   await sendQuery(`update post set is_deleted = $1 where post_id = $2`,[true,postId]);
   res.json({msg:"삭제가 완료되었습니다.", success:true});
+}
+
+const updatePost = async (req,res)=>{
+  if (req.isAuthenticated() == false){
+    return res.json({msg:"회원이 아닙니다."});
+  }
+  const {userId:authId} = req.user;
+  const form = req.body;
+  const {post_id, title, content} = form;
+
+  const target = await sendQuery(`select user_id from post where post_id = $1`,[post_id]);
+  if(target.length ===0)
+    return res.json({msg:"찾을 수 없는 게시글 입니다.", success:false});
+  const dbUser = target[0].userId;
+  console.log(target);
+  // console.log(authId, reqId, dbUser)
+  if(authId !== dbUser){
+    res.json({msg:"권한이 없습니다.", success:false});
+    return;
+  }
+  await sendQuery(`update post set title = $1, content = $2 where post_id = $3`,[title,content,post_id]);
+  res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
 const getComments = async (req, res)=>{
@@ -259,4 +283,4 @@ const updateComment = async (req, res)=>{
   res.json({msg:"수정이 완료되었습니다.", success:true});
 }
 
-module.exports = {getPosts,getPost,createPost,deletePost, getComments, createComment, deleteComment, updateComment};
+module.exports = {getPosts,getPost,createPost,updatePost,deletePost, getComments, createComment, deleteComment, updateComment};
