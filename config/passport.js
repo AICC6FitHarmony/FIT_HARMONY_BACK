@@ -69,8 +69,7 @@ passport.serializeUser((user, done) => {
 // 세션에서 ID로 사용자 정보 복원
 passport.deserializeUser(async (userId, done) => {
     try {
-        
-        const res = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where USER_ID = $1', [userId]);
+        const res = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL,ROLE from "USER" where USER_ID = $1', [userId]);
         done(null, res[0]);
     } catch (err) {
         done(err);

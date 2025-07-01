@@ -42,9 +42,10 @@ const getBaseController = async ({request, response, callback, params}) => {
         return respToJson(response, 200, result);
     } catch (error) {
         console.log(`getBaseController error : ${error.message}`);
-        return respToJson(response, 500, {
-            message : 'Error getBaseController : ' + error.message
-        });
+        // 굳이 별도의 처리 없어도 될듯? 없는게 에러 안나네?
+        // return respToJson(response, 500, {
+        //     message : 'Error getBaseController : ' + error.message
+        // });
     }
 }
 
