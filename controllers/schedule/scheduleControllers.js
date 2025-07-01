@@ -38,21 +38,19 @@ const schedulerControllers = [
 
                     // where 절 조건 배열
                     const selectSchedulewheres = [
-                        "user_id =", 
-                        "and to_char(start_time, 'YYYY-MM-DD') >=", 
-                        "and to_char(end_time, 'YYYY-MM-DD') <",
+                        "to_char(start_time, 'YYYY-MM-DD') >=", 
+                        "and to_char(end_time, 'YYYY-MM-DD') <=",
                         "and status in"
                     ];
                     
                     // where 절 조건 파라미터 배열
                     const selectScheduleWhereParams = [
-                        userId, 
                         params.startTime, 
                         params.endTime,
                         params.status
                     ];
 
-                    const result = await selectCalendaSchedule(selectSchedulewheres, selectScheduleWhereParams);
+                    const result = await selectCalendaSchedule(selectSchedulewheres, selectScheduleWhereParams, userId);
 
                     return { 
                         message: 'success',
@@ -128,7 +126,6 @@ const schedulerControllers = [
                                     const gptResult = JSON.parse(result);
                                     if(gptResult.success == 'true'){
                                         const scheduleList = gptResult.content; // 스케쥴 내용
-
                                         const deleteQuery = "delete from schedule where user_id = $1 and to_char(start_time, 'YYYY-MM-DD') >= to_char($2::timestamp, 'YYYY-MM-DD') and status <> 'D'";
                                         // 데이터 인서트 전 현재 + 미래데이터 제거(scheduleList[0] 의 starttime 보다 미래 starttime 데이터 제거)
                                         const deleteSchedule = await sendQuery(deleteQuery, [userId, scheduleList[0].startTime]);
@@ -224,7 +221,7 @@ const schedulerControllers = [
     },
 ];
 
-const selectCalendaSchedule = async (wheres, whereParams) => {
+const selectCalendaSchedule = async (wheres, whereParams, userId) => {
     let selectScheduleQuery = `
             select
                 schedule_id,
@@ -233,15 +230,47 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
                 s.end_time as end,
                 c_s.description as background_color,
                 '#fff' as color,
-                s.status
-            from schedule s
-            join (
+                s.status,
+                s.excersize_cnt,
+                split_part(c_ex.description, '|', 1) as cal,
+                split_part(c_ex.description, '|', 2) as unit,
+                s.total_calorie
+            from (
+                (
+                    select 
+                        schedule_id,
+                        status,
+                        start_time,
+                        end_time,
+                        excersize_cnt,
+                        excersise_division,
+                        0 as total_calorie
+                    from schedule
+                    where user_id = $1
+                )
+
+                union all
+
+                (
+                    select 
+                        diet_id as schedule_id,
+                        'd' as status,
+                        regist_date as start_time,
+                        regist_date + interval '1 hour' as end_time,
+                        1 as excersize_cnt,
+                        '' as excersise_division,
+                        total_calorie
+                    from diet
+                    where user_id = $2
+                )
+            ) s
+            left outer join (
                 select *
                 from code_detail
                 where code_class = 'C001'
             ) c_ex
             on s.excersise_division = c_ex.code_id
-            join (
+            left outer join (
                 select * 
                 from code_detail
                 where code_class = 'C002'
@@ -249,10 +278,10 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
             on s.status = c_s.code_id
     `;
 
-    let totalParam = [];
+    let totalParam = [userId, userId];
     if(wheres && wheres.length > 0){ // wheres가 존재하며, 길이가 1이상 일때 조건이 있다고 판단
         selectScheduleQuery += "where"
-        let whereCnt = 1;
+        let whereCnt = 3;
         wheres.forEach((where, idx) => {
             // 조건절( ex1] " and user_id = " ex2] "or start_time >= ") 분리를 위해 앞에 공백 처리 + 파라미터 전달을 위한 ${1} 작성
             if(where.indexOf(' in') == -1){ // in 조건절 제외
@@ -288,13 +317,12 @@ const selectCalendaSchedule = async (wheres, whereParams) => {
     }
 
     // order by 추가
-    selectScheduleQuery += `
-                    order by start`
+    selectScheduleQuery += ` order by start`
 
     if(whereParams && whereParams.length > 0){
         return await sendQuery(selectScheduleQuery, totalParam);
     }else{
-        return await sendQuery(selectScheduleQuery);
+        return await sendQuery(selectScheduleQuery, totalParam);
     }
 }
 
