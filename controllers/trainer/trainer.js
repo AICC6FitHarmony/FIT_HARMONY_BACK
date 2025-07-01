@@ -1,12 +1,14 @@
 const { sendQuery } = require('../../config/database');
 const getTrainerList = async (req, res) => {
   try {
+    const { limit = 10, offset = 0 } = req.query; // 또는 req.body
+
     const trainerquery = `
-      SELECT * FROM "USER"
+      SELECT * FROM "USER"   
       WHERE role = 'TRAINER'
       ORDER BY USER_NAME
-      LIMIT 10
-      OFFSET 0;
+      LIMIT ${limit}
+      OFFSET ${offset};
     `;
 
     const gymquery = `
@@ -22,10 +24,10 @@ const getTrainerList = async (req, res) => {
     `;
 
     const trainerresult = await sendQuery(trainerquery);
-    console.log(trainerresult);
+    // console.log(trainerresult);
     const countResult = await sendQuery(countQuery);
     const gymresult = await sendQuery(gymquery);
-    console.log(gymresult);
+    // console.log(gymresult);
     const productsresult = await sendQuery(productsquery);
 
     const total = countResult[0]?.total || 0; //현재 sendQuery 가 배열값이기 때문에(이유는 모름) 숫자로 변환. 즉 total 값에 0
