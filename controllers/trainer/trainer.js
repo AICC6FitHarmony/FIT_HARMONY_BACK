@@ -1,44 +1,41 @@
 const { sendQuery } = require('../../config/database');
 const getTrainerList = async (req, res) => {
   try {
-    const { limit = 10, offset = 0 } = req.query; // 또는 req.body
-
-    const trainerquery = `
-      SELECT * FROM "USER"   
+    const trainerlistquery = `
+     SELECT COUNT(*) AS total
+      FROM "USER"
       WHERE role = 'TRAINER'
-      ORDER BY USER_NAME
-      LIMIT ${limit}
-      OFFSET ${offset};
+    
     `;
 
-    const gymquery = `
-    SELECT * FROM "gym"`;
-
-    const productsquery = `
-    SELECT * FROM "products"`;
-
-    //프론트에 total 값 전달 페이징 처리를 목적으로 둠
-    const countQuery = `
-      SELECT COUNT(*) AS total FROM "USER"
-      WHERE role = 'TRAINER';
-    `;
+    const trainerquery = `select
+	    u.user_id,
+	    u.user_name,
+	    g.gym,
+	    g.gym_address,
+	    round(AVG(r.rating),2) AS rating,
+	    count(r.review_id) as review_count
+      from "USER" u
+        
+      left outer JOIN products p
+      on u.user_id = p.user_id
+      LEFT outer JOIN gym g 
+      ON u.gym_id = g.gym_id
+      left outer JOIN review r 
+      ON p.product_id = r.product_id
+        
+      where u.role = 'TRAINER'
+      GROUP BY u.user_id , u.user_name, g.gym, g.gym_address
+      `;
 
     const trainerresult = await sendQuery(trainerquery);
+    const trainerlistresult = await sendQuery(trainerlistquery);
     // console.log(trainerresult);
-    const countResult = await sendQuery(countQuery);
-    const gymresult = await sendQuery(gymquery);
-    // console.log(gymresult);
-    const productsresult = await sendQuery(productsquery);
-
-    const total = countResult[0]?.total || 0; //현재 sendQuery 가 배열값이기 때문에(이유는 모름) 숫자로 변환. 즉 total 값에 0
-    console.log(total);
 
     res.status(200).json({
       success: true,
       data: trainerresult,
-      gym: gymresult,
-      products: productsresult,
-      total: total,
+      total: trainerlistresult,
       message: '트레이너 목록 조회 성공',
     });
   } catch (error) {
