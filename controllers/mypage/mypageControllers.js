@@ -312,26 +312,25 @@ const mypageControllers = [
                     // 최근 활동 내역 조회
                     const recentPostActivity = await sendQuery(`
                         (SELECT 
-                            'schedule' as type,
-                            start_time as date,
-                            excersise_division as activity,
-                            status
-                        FROM schedule 
-                        WHERE user_id = $1 
-                        ORDER BY start_time DESC 
-                        LIMIT 10)
-                        UNION ALL
-                        (SELECT 
-                            'diet' as type,
-                            regist_date as date,
-                            '식단 기록' as activity,
-                            'D' as status
-                        FROM diet 
+                            'post' as type,
+                            created_time as date,
+                            title as activity
+                        FROM post
                         WHERE user_id = $1
-                        ORDER BY regist_date DESC 
-                        LIMIT 10)
-						ORDER BY date DESC 
+                        ORDER BY created_time DESC
                         LIMIT 10
+                        )
+                        UNION ALL
+                        (SELECT
+                    	    'comment' as type,
+                     	    created_time as date,
+                     	    content as activity
+                        FROM comment
+                        WHERE user_id = $1
+                        ORDER BY created_time DESC
+                        LIMIT 10
+                        )
+                        ORDER BY date DESC
                     `, [userId]);
 
                     return { 
