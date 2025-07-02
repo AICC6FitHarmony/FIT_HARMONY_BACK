@@ -182,7 +182,7 @@ const schedulerControllers = [
     },
 
 
-    // AI 스케쥴러 작성 요청
+    // 스케쥴 상태 전환
     {
         url : '/updateSchedule', 
         type : 'patch',
@@ -211,6 +211,113 @@ const schedulerControllers = [
                 }
             } catch (error) {
                 console.log(`/schedule/requestAiSchdule error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+
+        }   
+    },
+
+
+
+
+    // 
+    
+    // AI 식단 작성 요청
+    {
+        url : '/requestAiDiet', 
+        type : 'post',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const userId = request.user.userId; 
+
+                    // env 에서 파이썬 모듈 경로
+                    const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
+                    // gpt 모델 파일 경로
+                    const pyScriptPath = path.join(__dirname, 'gptModel.py');
+                    // AI 요청 구분
+                    const aiRequestDiv = "diet";
+                    // gpt 4o 터보 모델명 가져옴
+                    const model = process.env.GPT_4_o;
+
+                    const gptResult = await new Promise((resolve, reject) => {
+                        // child process 실행 (파라미터 : 모델 파일 경로, 질의 구분 코드, GPT 모델명, 질의(프롬프트), 추가 data: string 형태로 변환해서 전달)
+                        // 사용할 모델 정보, 프롬프트를 전달
+                        const child = spawn(pythonEnvPath, [pyScriptPath, aiRequestDiv, model, params.fileId, '']); 
+
+                        // 결과 수신
+                        let result = '';
+                        child.stdout.on('data', (data) => {
+                            result += data.toString();
+                        });
+
+                        // 에러 출력
+                        child.stderr.on('data', (data) => {
+                            console.error('/schedule/requestAiDiet', data.toString());
+                        });
+
+
+                        child.on('close', async (code) => {
+                            if (code !== 0) {
+                                reject(`종료 코드 ${code}`);
+                            }else{
+                                try {
+                                    const gptResult = JSON.parse(result);
+                                    if(gptResult.success == 'true'){
+                                        const dietResult = JSON.parse(gptResult.content); // 스케쥴 내용
+
+
+                                        // 여기서 부터 진행
+                                        // 테이블 구조 다시 확인하고...프롬프트 조정...
+
+
+
+                                        resolve({
+                                            success:true,
+                                            content:dietResult
+                                        });
+                                    }else{
+                                        reject({
+                                            success:false
+                                        });    
+                                    }
+                                } catch (err) {
+                                    console.log(err);
+                                    reject({
+                                        success:false
+                                    });
+                                }
+                            }
+                        });
+                    });
+                    
+                    console.log("===================gptResult=======================")
+                    console.log(gptResult)
+
+                    if(gptResult.success){ // 정상 동작 > 프론트로 정상 동작 여부 전달
+                        return { 
+                            message: 'success',
+                            success: true,
+                            content: gptResult.content
+                        }
+                    }else{ // 에러 발생 > 프론트로 에러 발생 전달
+                        return { 
+                            message: 'error',
+                            success: false
+                        }
+                    }
+                }else{ // 비인증 접근 > 프론트로 비인증 여부 전달
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/schedule/requestAiDiet error : ${error.message}`);
+                console.log(error)
                 return {
                     message: 'error',
                     success: false

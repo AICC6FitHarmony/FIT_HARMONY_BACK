@@ -65,6 +65,7 @@ const getUserInbodyDayData = async (req, res) => {
         // inbodyResult가 비어있어도 200 상태로 응답
         res.status(200).json({
             success: true,
+            credentials: 'include',
             inbodyResult: inbodyResult || [],
             standardData: inbodyStandardResult || [],
             inbodyTimeResult: inbodyTimeResult || [],
