@@ -49,6 +49,9 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (userId, done) => {
     try {
         const res = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL,ROLE from "USER" where USER_ID = $1', [userId]);
+        if(res.length == 0){
+            return done(null,false, {message : '인증중 에러가 발생하였습니다.', success:false});
+        }
         done(null, res[0]);
     } catch (err) {
         done(err);
