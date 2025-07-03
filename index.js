@@ -117,7 +117,7 @@ app.use(require('./controllers/authControllers')); // authController 라우터 �
 app.use('/login', require('./routes/login/loginRoutes'));
 // 2. Inbody 관련 라우팅
 app.use('/inbody', require('./routes/inbody/inbodyRoutes')); // inbody 라우터 연결
-app.use('/mypage', require('./routes/mypage/mypageRoutes')); // mypage 라우터 연결
+app.use('/mypage', require('./controllers/mypage/mypageControllers')); // mypage 라우터 연결
 
 // 3. Schedule 관련 라우팅
 app.use('/schedule', require('./controllers/schedule/scheduleControllers')); // scheduler 라우터 + controllers 연결
