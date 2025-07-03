@@ -15,8 +15,6 @@ const mypageControllers = [
             try {
                 if(request.isAuthenticated()){
                     let userId = params.userId; // 요청된 사용자 ID
-                    console.log("userId", userId);
-                    console.log(request.user.userId)
                     // 본인 데이터만 조회 가능하도록 제한
                     if(request.user.userId != userId){
                         return {
@@ -76,9 +74,20 @@ const mypageControllers = [
                         fitHistory,
                         fitGoal,
                         introduction,
-                        GYM
+                        GYM,
+                        fileId
                     } = params;
-
+                    console.log("===============================================================params", params)
+                    // 빈 값들을 null로 초기화
+                    const cleanHeight = height != '' ? height : null;
+                    const cleanWeight = weight != '' ? weight : null;
+                    const cleanAge = age != '' ? age : null;
+                    const cleanFitHistory = fitHistory != '' ? fitHistory : null;
+                    const cleanFitGoal = fitGoal != '' ? fitGoal : null;
+                    const cleanIntroduction = introduction != '' ? introduction : null;
+                    const cleanGYM = GYM != '' ? GYM : null;
+                    const cleanFileId = fileId != '' ? fileId : 1;
+                
                     // 필수 필드 검증
                     if(!userName || !email || !nickName){
                         return {
@@ -112,7 +121,13 @@ const mypageControllers = [
                             success: false
                         }
                     }
-
+                    
+                    // 이전 이미지 파일 삭제 - 1( 기본이미지 )일 경우 제외
+                    const deleteFile = await sendQuery(
+                        'DELETE FROM file WHERE file_id = (SELECT file_id FROM "USER" WHERE user_id = $1)AND (SELECT file_id FROM "USER" WHERE user_id = $1) IS DISTINCT FROM 1',
+                        [userId]
+                        );
+                    
                     // 사용자 데이터 업데이트
                     const updateQuery = `
                         UPDATE "USER" SET
@@ -120,14 +135,15 @@ const mypageControllers = [
                             email = $2,
                             nick_name = $3,
                             phone_number = $4,
-                            height = $5,
-                            weight = $6,
-                            age = $7,
+                            height = CAST($5 AS INTEGER),
+                            weight = CAST($6 AS INTEGER),
+                            age = CAST($7 AS INTEGER),
                             fit_history = $8,
                             fit_goal = $9,
                             introduction = $10,
-                            gym_id = $11
-                        WHERE user_id = $12
+                            gym_id = CAST($11 AS INTEGER),
+                            file_id = CAST($12 AS INTEGER)
+                        WHERE user_id = $13
                     `;
 
                     await sendQuery(updateQuery, [
@@ -135,13 +151,14 @@ const mypageControllers = [
                         email,
                         nickName,
                         phoneNumber,
-                        height,
-                        weight,
-                        age,
-                        fitHistory,
-                        fitGoal,
-                        introduction,
-                        GYM,
+                        cleanHeight,
+                        cleanWeight,
+                        cleanAge,
+                        cleanFitHistory,
+                        cleanFitGoal,
+                        cleanIntroduction,
+                        cleanGYM,
+                        cleanFileId,
                         userId
                     ]);
 
@@ -295,9 +312,10 @@ const mypageControllers = [
                         SELECT 
                             COUNT(*) as total_schedules,
                             COUNT(CASE WHEN status = 'C' THEN 1 END) as completed_schedules,
-                            COUNT(CASE WHEN status = 'F' THEN 1 END) as missed_schedules
+                            COUNT(CASE WHEN status = 'F' THEN 1 END) as missed_schedules,
+                            COUNT(CASE WHEN status = 'N' THEN 1 END) as not_started_schedules
                         FROM schedule 
-                        WHERE user_id = $1 AND status IN ('C', 'F')
+                        WHERE user_id = $1 AND status IN ('C', 'F', 'N')
                     `, [userId]);
 
                     // 식단 활동 내역 조회
@@ -365,6 +383,7 @@ const selectUserData = async (userId) => {
         SELECT
             user_id,
             user_name,
+            file_id,
             email,
             nick_name,
             phone_number,
