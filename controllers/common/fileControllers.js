@@ -20,7 +20,7 @@ const uploadProc = async (files, fileId, userId) => {
 }
 
 const uploadFile = async ({file, fileId, userId, groupOrdr, timestamp}) => {
-  console.log("Upload : ",file);
+  // console.log("Upload : ",file);
   const { originalname, mimetype, size } = file;
   
   const ext = path.extname(originalname); // 확장자 조회

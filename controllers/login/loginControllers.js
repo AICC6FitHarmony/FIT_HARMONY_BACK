@@ -8,8 +8,8 @@ const userRegister = async (req, profile, done)=>{
   const profile_image = req.session.oauthProfileImage;
   const query = `
   INSERT INTO "USER" (
-  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL) VALUES (
-  $1, $2, $3, $4, $5, $6,$7,$8,$9
+  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL,FILE_ID) VALUES (
+  $1, $2, $3, $4, $5, $6,$7,$8,$9,$10
   ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
   `;
 
@@ -27,18 +27,20 @@ const userRegister = async (req, profile, done)=>{
       formData.gender,
       formData.role,
       formData.goal,
+      1 //기본 프로필 이미지 id 
   ];
   console.log(values)
   try {
     const user = await sendQuery(query, values);
-    console.log(user);
-
-    const {userId} = user[0];
-    console.log(profile_image);
-    const img_addr = await uploadFileImage([profile_image],userId);
-    const fileId = img_addr.fileIdArr[0];
-    console.log(img_addr, userId);
-    await sendQuery(`update "USER" set file_id = $1 where user_id = $2`,[fileId,userId])
+    // console.log(user);
+    if(profile_image){
+      const {userId} = user[0];
+      const img_addr = await uploadFileImage([profile_image],userId);
+      const fileId = img_addr.fileIdArr[0];
+      // console.log(img_addr, userId);
+      await sendQuery(`update "USER" set file_id = $1 where user_id = $2`,[fileId,userId])
+    }
+    
 
     return done(null, user[0]);
   } catch (error) {
@@ -47,7 +49,13 @@ const userRegister = async (req, profile, done)=>{
   }
 }
 
+const getGyms = async (req,res)=>{
 
+}
+
+const createGym = async (req,res)=>{
+
+}
 
 
 module.exports = {userRegister};
