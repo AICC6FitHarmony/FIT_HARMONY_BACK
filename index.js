@@ -153,7 +153,7 @@ app.get(
 );
 app.get(
   `${process.env.GOOGLE_CALLBACK_URL}`,
-  passport.authenticate('google', { failureRedirect: '/login-fail' }),
+  passport.authenticate('google', { failureRedirect: '/login-fail' , scope:['profile', 'email']}),
   (request, response) => {
     // 세션 저장 후 프론트에서 인증 확인 가능
     response.redirect(`${process.env.FRONT_DOMAIN}/auth/google/result`); //  동작 테스트 확인 필요
