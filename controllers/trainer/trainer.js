@@ -8,24 +8,21 @@ const getTrainerList = async (req, res) => {
     
     `;
 
-    const trainerquery = `select
-	    u.user_id,
-	    u.user_name,
-	    g.gym,
-	    g.gym_address,
-	    round(AVG(r.rating),2) AS rating,
-	    count(r.review_id) as review_count
-      from "USER" u
-        
-      left outer JOIN products p
-      on u.user_id = p.user_id
-      LEFT outer JOIN gym g 
-      ON u.gym_id = g.gym_id
-      left outer JOIN review r 
-      ON p.product_id = r.product_id
-        
-      where u.role = 'TRAINER'
-      GROUP BY u.user_id , u.user_name, g.gym, g.gym_address
+    const trainerquery = `SELECT
+      u.user_id,
+      u.user_name,
+      u.gender,
+      g.gym,
+      g.gym_address,
+      MIN(p.price) AS min_price,
+      ROUND(AVG(r.rating), 2) AS rating,
+      COUNT(r.review_id) AS review_count
+      FROM "USER" u
+      LEFT OUTER JOIN products p ON u.user_id = p.user_id
+      LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
+      LEFT OUTER JOIN review r ON p.product_id = r.product_id
+      WHERE u.role = 'TRAINER'
+      GROUP BY u.user_id, u.user_name, u.gender, g.gym, g.gym_address
       `;
 
     const trainerresult = await sendQuery(trainerquery);
