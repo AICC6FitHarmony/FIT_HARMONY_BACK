@@ -1,0 +1,44 @@
+const { sendQuery } = require("../../config/database");
+
+const userRegister = async (req, profile, done)=>{
+  const { id,displayName, emails, photos } = profile;
+  const formData = req?.session?.oauthFormData;
+
+  const profile_image = req.session.oauthProfileImage;
+  const query = `
+  INSERT INTO "USER" (
+  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL) VALUES (
+  $1, $2, $3, $4, $5, $6,$7,$8,$9
+  ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
+  `;
+
+  if(formData.role !=="MEMBER" && formData.role !=="TRAINER"){
+      return done(null, false, {message:"허가되지 않은 권한", success:false})
+  }
+
+  const values = [
+      displayName,
+      formData.nick_name,
+      emails[0].value,
+      formData.age,
+      formData.height,
+      formData.weight,
+      formData.gender,
+      formData.role,
+      formData.goal
+  ];
+  console.log(values)
+  try {
+    const user = await sendQuery(query, values);
+    console.log(user);
+    return done(null, user[0]);
+  } catch (error) {
+    console.log("Error : ",error);
+    return done(null,false, {message : '회원 가입 중 에러가 발생하였습니다.', success:false});
+  }
+}
+
+
+
+
+module.exports = {userRegister};
