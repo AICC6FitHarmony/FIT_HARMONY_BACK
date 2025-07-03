@@ -398,17 +398,64 @@ const schedulerControllers = [
         }   
     },
     
-    // 스케쥴 상태 전환
+    // 사용자 일(day) 단위(운동 꾸준히 한 수준)의 필요 칼로리 소모량 조회
     {
-        url : "/schedule/user/dayCaloie", 
+        url : "/user/dayCalorie", 
         type : 'get',
         callback : async ({request, params}) => {
             try {
                 if(request.isAuthenticated()){
+                    const userId = request.user.userId; // 디폴트는 로그인한 사람 데이터 조회
+
+                    const result = await sendQuery(`
+                         select * from "USER"
+                         where user_id = $1
+                    `, [userId])
+
+                    if(result.length == 0){
+                        return { 
+                            message: 'noUser',
+                            success: true
+                        }
+                    }
+
                     
+                    const { age, height, weight, gender } = result[0];
+
+                    /*
+                    ✅ 활동 지수(Activity Factor) 표
+                    활동 수준	설명	활동 지수 (activityFactor)
+                    1.2	거의 움직이지 않음 (앉아서 일함)	Sedentary
+                    1.375	가벼운 운동 (주 1~3일)	Lightly Active
+                    1.55	중간 정도 운동 (주 3~5일)	Moderately Active
+                    1.725 ← [기본값]	격렬한 운동 (주 6~7일)	Very Active
+                    1.9	매우 격렬한 운동 (하루 2회 이상)	Super Active
+                    */
+                    const activityFactors = {
+                        sedentary: 1.2,
+                        light: 1.375,
+                        moderate: 1.55,
+                        active: 1.725,
+                        veryActive: 1.9,
+                      };
+                    
+                      // 1. BMR 계산
+                      const bmr = (
+                        gender === 'M' ? (10 * weight + 6.25 * height - 5 * age + 5) : (10 * weight + 6.25 * height - 5 * age - 161)
+                    );
+                    
+                    // 2. 활동지수 반영
+                    const activityFactor = activityFactors['active'] || 1.725;
+                    const tdee = bmr * activityFactor;
+
+
                     return { 
                         message: 'success',
-                        success: true
+                        success: true,
+                        data : {
+                            tdee: Math.round(tdee), // 소모가 필요한 칼로리량
+                            targetCalories : Math.round(tdee - 300) // 섭취가 필요한 칼로리량(감량)
+                        }
                     }
                 }else{ // 비인증 접근 > 프론트로 비인증 여부 전달
                     return {
