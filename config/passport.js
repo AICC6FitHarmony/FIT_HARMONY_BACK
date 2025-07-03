@@ -3,6 +3,7 @@ const LocalStrategy = require('passport-local').Strategy; // ID + 비밀번호 �
 const crypto = require('crypto');
 const {v4:uuidv4} = require('uuid'); // 난수 생성 모듈
 const { sendQuery } = require('./database'); 
+const { userRegister } = require('../controllers/login/loginControllers');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 // SHA-512 해시 함수
@@ -23,34 +24,7 @@ passport.use(new GoogleStrategy({
 
         const formData = req?.session?.oauthFormData;
         if(user.length==0 && formData !== undefined){//회원가입
-            const profile_image = req.session.oauthProfileImage;
-            const query = `
-            INSERT INTO "USER" (
-            USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL) VALUES (
-            $1, $2, $3, $4, $5, $6,$7,$8,$9
-            ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
-        `;
-
-            if(formData.role !=="MEMBER" && formData.role !=="TRAINER"){
-                return done(null, false, {message:"허가되지 않은 권한", success:false})
-            }
-
-            const values = [
-                displayName,
-                formData.nick_name,
-                emails[0].value,
-                formData.age,
-                formData.height,
-                formData.weight,
-                formData.gender,
-                formData.role,
-                formData.goal
-            ];
-            // console.log(values)
-            const user = await sendQuery(query, values);
-            // console.log("User Login")
-            // console.log(user);
-            return done(null, user[0]);
+            return await userRegister(req, profile, done);
         }
         
         if (user?.length > 0) {
