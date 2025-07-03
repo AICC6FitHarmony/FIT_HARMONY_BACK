@@ -152,7 +152,7 @@ app.get(
   })
 );
 app.get(
-  process.env.GOOGLE_CALLBACK_URL,
+  `${process.env.GOOGLE_CALLBACK_URL}`,
   passport.authenticate('google', { failureRedirect: '/login-fail' }),
   (request, response) => {
     // 세션 저장 후 프론트에서 인증 확인 가능
