@@ -143,6 +143,7 @@ app.get(process.env.GOOGLE_CALLBACK_URL,
 );
 
 app.get("/login-fail",(req,res)=>{
+    console.log("TestTest : ",req.body);
     res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`) //  동작 테스트 확인 필요
 })
 
