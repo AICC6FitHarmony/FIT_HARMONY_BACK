@@ -1,4 +1,5 @@
 const { sendQuery } = require("../../config/database");
+const { uploadFileImage } = require("../common/fileControllers");
 
 const userRegister = async (req, profile, done)=>{
   const { id,displayName, emails, photos } = profile;
@@ -25,12 +26,20 @@ const userRegister = async (req, profile, done)=>{
       formData.weight,
       formData.gender,
       formData.role,
-      formData.goal
+      formData.goal,
   ];
   console.log(values)
   try {
     const user = await sendQuery(query, values);
     console.log(user);
+
+    const {userId} = user[0];
+    console.log(profile_image);
+    const img_addr = await uploadFileImage([profile_image],userId);
+    const fileId = img_addr.fileIdArr[0];
+    console.log(img_addr, userId);
+    await sendQuery(`update "USER" set file_id = $1 where user_id = $2`,[fileId,userId])
+
     return done(null, user[0]);
   } catch (error) {
     console.log("Error : ",error);
