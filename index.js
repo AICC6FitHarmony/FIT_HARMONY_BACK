@@ -140,7 +140,7 @@ app.post(
     req.session.oauthFormData = req.body;
     req.session.oauthProfileImage = req.file;
     console.log(req?.body);
-    res.json({ redirectUrl: `http://localhost:8000/auth/google` });
+    res.json({ redirectUrl: `${process.env.FRONT_DOMAIN}/auth/google` });
   }
 );
 app.get(
