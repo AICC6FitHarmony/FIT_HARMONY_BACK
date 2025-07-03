@@ -5,7 +5,7 @@ const { initRoute } = require('../../routes/common_routes'); // 라우트 작성
 const { spawn } = require('child_process'); // nodejs > python script 동작? 연결?
 const path = require('path');
 const dotenv = require('dotenv'); // require 메서드로 dotenv 모듈을 불러와서 환경 변수를 로드한다.
-const { sendQuery } = require('../../config/database');
+const { sendQuery, pool } = require('../../config/database');
 const ROLE = require("../../config/ROLE"); // ROLE 구분 정보 객체
 
 //  2) 통신 객체 배열 선언
@@ -234,6 +234,21 @@ const schedulerControllers = [
                 if(request.isAuthenticated()){
                     const userId = request.user.userId; 
 
+                    if(!params.fileId){ // 파일 정보가 없는 경우 에러처리
+                        return {
+                            success:false,
+                            message:'noFile'
+                        }
+                    }
+
+                    const fileYn = await sendQuery('select file_id from file where file_id = $1', [params.fileId]);
+                    if(!fileYn || fileYn.length == 0){ // 파일 정보가 없는 경우 에러처리
+                        return {
+                            success:false,
+                            message:'noFile'
+                        }
+                    }
+
                     // env 에서 파이썬 모듈 경로
                     const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
                     // gpt 모델 파일 경로
@@ -259,7 +274,6 @@ const schedulerControllers = [
                             console.error('/schedule/requestAiDiet', data.toString());
                         });
 
-
                         child.on('close', async (code) => {
                             if (code !== 0) {
                                 reject(`종료 코드 ${code}`);
@@ -269,15 +283,74 @@ const schedulerControllers = [
                                     if(gptResult.success == 'true'){
                                         const dietResult = JSON.parse(gptResult.content); // 스케쥴 내용
 
+                                        if(!dietResult || dietResult.length == 0){
+                                            return {
+                                                success:false,
+                                                message:'noDiet'
+                                            }
+                                        }
 
-                                        // 여기서 부터 진행
-                                        // 테이블 구조 다시 확인하고...프롬프트 조정...
+                                        // 메인디쉬 추출
+                                        const dietTotalCal = dietResult.reduce((sum, item) => sum + item.totalCal, 0); // totalCal 전체 계산 sum : 축적 값, item : 루프 객체, 0 : 초기 값
+                                        const mainDish = dietResult.filter(item => item.isMainDish)[0];
+                                        const { name, category } = mainDish;
+                                        
+                                        
+                                        const diet = await sendQuery(`
+                                            insert into diet (
+                                                user_id,
+                                                diet_main_menu_name,
+                                                category,
+                                                total_calorie,
+                                                file_id
+                                            ) values (
+                                                $1, $2, $3, $4, $5
+                                            )
+                                            returning diet_id
+                                        `, [userId, name, category, dietTotalCal, params.fileId])
+
+                                        const { dietId } = diet[0];
 
 
+                                        let insertDietMenuIdQueryParamCnt = 0;
+                                        let insertDietMenuIdQueryParam = [];
+                                        let insertDietMenuIdQuery = `
+                                            insert into DIET_MENU_ID (
+                                                diet_id,
+                                                user_id,
+                                                diet_menu_name,
+                                                calorie,
+                                                is_main_dish,
+                                                topping
+                                            ) values 
+                                        `;
+
+                                        const insertDietMenuIdQueryValues = dietResult.reduce((query, item) => {
+                                            const { name, topping, isMainDish, totalCal } = item;
+                                            query += (
+                                                `${query == '' ? '' : ','}( 
+                                                    $${++insertDietMenuIdQueryParamCnt}, 
+                                                    $${++insertDietMenuIdQueryParamCnt}, 
+                                                    $${++insertDietMenuIdQueryParamCnt}, 
+                                                    $${++insertDietMenuIdQueryParamCnt}, 
+                                                    $${++insertDietMenuIdQueryParamCnt}, 
+                                                    $${++insertDietMenuIdQueryParamCnt}
+                                                )`
+                                            )
+                                            insertDietMenuIdQueryParam.push(Number(dietId))
+                                            insertDietMenuIdQueryParam.push(Number(userId))
+                                            insertDietMenuIdQueryParam.push(name)
+                                            insertDietMenuIdQueryParam.push(Number(totalCal))
+                                            insertDietMenuIdQueryParam.push(isMainDish ? 'Y' : 'N')
+                                            insertDietMenuIdQueryParam.push(topping.join(', '))
+                                            return query;
+                                        }, '')
+
+                                        await sendQuery(insertDietMenuIdQuery + insertDietMenuIdQueryValues, insertDietMenuIdQueryParam);
 
                                         resolve({
                                             success:true,
-                                            content:dietResult
+                                            message:"success"
                                         });
                                     }else{
                                         reject({
@@ -289,13 +362,11 @@ const schedulerControllers = [
                                     reject({
                                         success:false
                                     });
-                                }
+                                } 
                             }
                         });
                     });
                     
-                    console.log("===================gptResult=======================")
-                    console.log(gptResult)
 
                     if(gptResult.success){ // 정상 동작 > 프론트로 정상 동작 여부 전달
                         return { 
@@ -326,13 +397,48 @@ const schedulerControllers = [
 
         }   
     },
+    
+    // 스케쥴 상태 전환
+    {
+        url : "/schedule/user/dayCaloie", 
+        type : 'get',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    
+                    return { 
+                        message: 'success',
+                        success: true
+                    }
+                }else{ // 비인증 접근 > 프론트로 비인증 여부 전달
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/schedule/requestAiSchdule error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+
+        }   
+    },
+
+
 ];
 
 const selectCalendaSchedule = async (wheres, whereParams, userId) => {
     let selectScheduleQuery = `
             select
                 schedule_id,
-                c_ex.code_name as title,
+                (
+                    case 
+                        when s.status = 'D' then s.diet_main_menu_name
+                        else c_ex.code_name end
+                ) as title,
                 s.start_time as start,
                 s.end_time as end,
                 c_s.description as background_color,
@@ -341,7 +447,9 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
                 s.excersize_cnt,
                 split_part(c_ex.description, '|', 1) as cal,
                 split_part(c_ex.description, '|', 2) as unit,
-                s.total_calorie
+                s.total_calorie,
+                s.menus,
+                s.file_id
             from (
                 (
                     select 
@@ -351,7 +459,10 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
                         end_time,
                         excersize_cnt,
                         excersise_division,
-                        0 as total_calorie
+                        0 as total_calorie,
+                        '' as diet_main_menu_name,
+                        '' as menus,
+                        '0' as file_id
                     from schedule
                     where user_id = $1
                 )
@@ -360,15 +471,26 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
 
                 (
                     select 
-                        diet_id as schedule_id,
-                        'd' as status,
-                        regist_date as start_time,
-                        regist_date + interval '1 hour' as end_time,
+                        d.diet_id as schedule_id,
+                        'D' as status,
+                        d.regist_date as start_time,
+                        d.regist_date + interval '1 hour' as end_time,
                         1 as excersize_cnt,
                         '' as excersise_division,
-                        total_calorie
-                    from diet
-                    where user_id = $2
+                        d.total_calorie,
+                        d.diet_main_menu_name,
+                        m.menus,
+                        d.file_id
+                    from diet d 
+                    join (
+                        select
+                            diet_id,
+                            string_agg(concat(diet_menu_name, '(칼로리 :', calorie,')'), '|') as menus
+                        from diet_menu_id
+                        group by diet_id
+                    ) m
+                    on d.diet_id = m.diet_id
+                    where d.user_id = $2
                 )
             ) s
             left outer join (
