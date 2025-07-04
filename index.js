@@ -142,7 +142,7 @@ app.post(
     req.session.oauthFormData = req.body;
     req.session.oauthProfileImage = req.file;
     console.log(req?.body);
-    res.json({ redirectUrl: `${process.env.FRONT_DOMAIN}/auth/google` });
+    res.json({ redirectUrl: `https://fhback.wa4b.site/auth/google` });
   }
 );
 app.get(
