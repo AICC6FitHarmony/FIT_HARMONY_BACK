@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getTrainerList } = require('../../controllers/trainer/trainer');
+const {
+  getTrainerList,
+  getTrainerDetail,
+} = require('../../controllers/trainer/trainer');
 
 router.get('/', getTrainerList);
-
+router.get('/:id', getTrainerDetail);
 module.exports = router;
