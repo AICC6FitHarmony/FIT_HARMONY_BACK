@@ -20,6 +20,8 @@ const PORT = process.env.PORT || 8000;
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // 보안 헤더 설정
 app.use(helmet());
 
