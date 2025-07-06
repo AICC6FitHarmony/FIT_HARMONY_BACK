@@ -8,8 +8,8 @@ const userRegister = async (req, profile, done)=>{
   const profile_image = req.session.oauthProfileImage;
   const query = `
   INSERT INTO "USER" (
-  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL,FILE_ID,GYM_ID,FIT_HISTORY) VALUES (
-  $1, $2, $3, $4, $5, $6,$7,$8,$9,$10,$11,$12
+  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL,FILE_ID) VALUES (
+  $1, $2, $3, $4, $5, $6,$7,$8,$9,$10
   ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
   `;
 
@@ -27,9 +27,7 @@ const userRegister = async (req, profile, done)=>{
       formData.gender,
       formData.role,
       formData.goal,
-      undefined, //기본 프로필 이미지 id
-      formData.gymId,
-      formData.history,
+      1 //기본 프로필 이미지 id 
   ];
   console.log(values)
   try {
