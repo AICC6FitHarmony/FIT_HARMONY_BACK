@@ -133,6 +133,9 @@ app.use('/trainer', require('./routes/trainer/trainerRoutes')); // trainer 라�
 // Community 관련 라우팅
 app.use('/community', require('./routes/community/communityRoutes'));
 
+// Intro 관련 라우팅 (루트 경로)
+app.use('/', require('./controllers/intro/introControllers'));
+
 // 2. 구글 인증
 app.post(
   '/auth/google/register',
@@ -164,10 +167,6 @@ app.get(
 
 app.get('/login-fail', (req, res) => {
   res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`); //  동작 테스트 확인 필요
-});
-
-app.get('/', (request, response) => {
-  response.send('Hello World');
 });
 
 // 서버 시작
