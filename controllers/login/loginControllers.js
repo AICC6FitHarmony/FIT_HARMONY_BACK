@@ -51,13 +51,5 @@ const userRegister = async (req, profile, done)=>{
   }
 }
 
-const getGyms = async (req,res)=>{
-
-}
-
-const createGym = async (req,res)=>{
-
-}
-
 
 module.exports = {userRegister};
