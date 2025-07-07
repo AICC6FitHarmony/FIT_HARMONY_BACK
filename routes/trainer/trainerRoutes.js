@@ -5,11 +5,13 @@ const {
   getTrainerDetail,
   getTrainerReview,
   getTrainerProduct,
+  createTrainerReview,
 } = require('../../controllers/trainer/trainer');
 
 router.get('/', getTrainerList);
 router.get('/:id/product', getTrainerProduct);
 router.get('/:id/review', getTrainerReview);
 router.get('/:id', getTrainerDetail);
+router.post('/review', createTrainerReview);
 
 module.exports = router;

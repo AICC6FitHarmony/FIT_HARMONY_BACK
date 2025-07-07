@@ -161,9 +161,74 @@ const getTrainerReview = async (req, res) => {
   }
 };
 
+const createTrainerReview = async (req, res) => {
+  if (req.isAuthenticated() == false) {
+    return res.json({ msg: '회원이 아닙니다.', success: false });
+  }
+
+  try {
+    const { trainerId, rating, content } = req.body;
+    const { user } = req;
+    const { userId } = user;
+
+    // 트레이너의 첫 번째 상품 ID 가져오기 (리뷰는 상품에 연결됨)
+    const getProductQuery = `
+      SELECT product_id 
+      FROM products 
+      WHERE user_id = $1 
+      LIMIT 1
+    `;
+
+    const productResult = await sendQuery(getProductQuery, [trainerId]);
+
+    if (!productResult || productResult.length === 0) {
+      return res.json({
+        msg: '해당 트레이너의 상품을 찾을 수 없습니다.',
+        success: false,
+      });
+    }
+
+    const productId = productResult[0].product_id;
+
+    // 리뷰 저장 쿼리
+    const insertReviewQuery = `
+      INSERT INTO review (user_id, product_id, rating, content, created_time, updated_time)
+      VALUES ($1, $2, $3, $4, NOW(), NOW())
+      RETURNING review_id
+    `;
+
+    const reviewResult = await sendQuery(insertReviewQuery, [
+      userId,
+      productId,
+      rating,
+      content,
+    ]);
+
+    if (reviewResult && reviewResult.length > 0) {
+      res.json({
+        msg: '리뷰가 성공적으로 등록되었습니다.',
+        reviewId: reviewResult[0].review_id,
+        success: true,
+      });
+    } else {
+      res.json({
+        msg: '리뷰 등록에 실패했습니다.',
+        success: false,
+      });
+    }
+  } catch (error) {
+    console.error('리뷰 등록 오류:', error);
+    res.json({
+      msg: '리뷰 등록 실패',
+      success: false,
+    });
+  }
+};
+
 module.exports = {
   getTrainerList,
   getTrainerDetail,
   getTrainerProduct,
   getTrainerReview,
+  createTrainerReview,
 };
