@@ -92,7 +92,6 @@ const getTrainerDetail = async (req, res) => {
 };
 
 const getTrainerProduct = async (req, res) => {
-  console.log('[📦] getTrainerProduct 진입, userId:', req.params.id);
   const userId = req.params.id;
 
   const trainerProductQuery = `
