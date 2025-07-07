@@ -45,6 +45,7 @@ def gpt_call(role_name, messages):
     try:
         response = openai.chat.completions.create(
             model=model,
+            temperature=0.2,
             messages=messages,
             max_tokens=2048
         )
@@ -165,6 +166,7 @@ def resize_and_encode_image(file_path: str, max_size=(768, 768)) -> str:
 def analyze_food_image(base64_image: str) -> dict:
     response = openai.chat.completions.create(
         model=model,
+        temperature=0.2, # 감정온도 : 가능한 낮춰서 좀도 결정론적으로 응답하도록 처리
         messages=[
             {
                 "role": "system",
