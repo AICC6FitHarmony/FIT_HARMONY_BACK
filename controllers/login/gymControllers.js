@@ -3,7 +3,7 @@ const { sendQuery } = require("../../config/database");
 const getGyms = async (req, res)=>{
   try {
     const gyms = await sendQuery(
-      `select * from gym`
+      `select * from gym order by gym`
     )
     res.json(gyms);
   } catch (error) {
@@ -12,12 +12,18 @@ const getGyms = async (req, res)=>{
   }
 }
 
-const createGyms = async (req, res) => {
-  // const {gym, gym_address}
+const createGym = async (req, res) => {
+  console.log(req.body);
+  const {gym_name, gym_address} = req.body;
   try {
     const gyms = await sendQuery(`
-      insert into gym(gym, gym_address) values(1$,2$)
-      `,[]);
+      insert into gym(gym, gym_address) values($1, $2) returning *
+      `,[gym_name, gym_address]);
+    
+    if(gyms.length == 0){
+      return res.json({msg:"생성 실패", success:false});
+    }
+    res.json(gyms[0]);
   } catch (error) {
     console.log("createGyms Error : ",error);
     res.json({msg:error, success:false})
@@ -25,4 +31,4 @@ const createGyms = async (req, res) => {
 }
 
 
-module.exports = {getGyms};
+module.exports = {getGyms, createGym};
