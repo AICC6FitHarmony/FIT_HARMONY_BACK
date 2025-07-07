@@ -82,9 +82,10 @@ const authorizeRole = (roles) => {
 const adminAuthRole = [ROLE.ADMIN];
 const trainerAuthRole = [ROLE.TRAINER];
 const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
-// 0. 공통 모든 접근은 선언 X
-// 0-1. 파일 업로드 관련 기능은 권한 조건 처리
-app.use('/common/file', authorizeRole(totalAuthUserRole));
+
+// // 0. 공통 모든 접근은 선언 X
+// // 0-1. 파일 업로드 관련 기능은 권한 조건 처리
+// app.use('/common/file', authorizeRole(totalAuthUserRole));
 
 // 1-1. /admin 접근 권한 부여(관리자 접근 권한)
 app.use('/admin', authorizeRole(adminAuthRole));
