@@ -145,7 +145,7 @@ app.post(
     req.session.oauthFormData = req.body;
     req.session.oauthProfileImage = req.file;
     console.log(req?.body);
-    res.json({ redirectUrl: `/auth/google` });
+    res.json({ redirectUrl: `auth/google` });
   }
 );
 app.get(
