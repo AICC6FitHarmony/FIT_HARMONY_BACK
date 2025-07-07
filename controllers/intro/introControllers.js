@@ -24,9 +24,10 @@ const introControllers = [
                                               (SELECT file_id
                                                FROM diet AS d2 
                                                WHERE d2.diet_main_menu_name = d1.diet_main_menu_name
-                                               LIMIT 1) AS sample_file_id
+                                               LIMIT 1) AS file_id
                                         FROM diet AS d1
                                         GROUP BY diet_main_menu_name
+                                        ORDER BY diet_count DESC
                                         LIMIT 10
                                         `
 
