@@ -19,10 +19,11 @@ const schedulerControllers = [
                 if(request.isAuthenticated()){
                     let userId = request.user.userId; // 디폴트는 로그인한 사람 데이터 조회
                     
+                    
                     if(request.user.role == ROLE.TRAINER){ // 강사인 경우만 회원 데이터 조회 가능
-                        // /trainer 로 접근 했고, querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
-                        if(request.originalUrl.startsWith('/trainer') && params.userId){ 
-                            userId = params.userId;
+                        // querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
+                        if(params.selectedUserId){ 
+                            userId = params.selectedUserId;
 
                             // 매칭이 성사된 사용자(승인) 데이터만 조회 할 수 있도록 제한
                             // 승인 코드 확인 할 것...

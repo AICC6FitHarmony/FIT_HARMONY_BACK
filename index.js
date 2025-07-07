@@ -137,6 +137,10 @@ app.use('/community', require('./routes/community/communityRoutes'));
 // Intro 관련 라우팅 (루트 경로)
 app.use('/', require('./controllers/intro/introControllers'));
 
+// 8. buy 관련 라우팅
+app.use('/buy', require('./controllers/trainer/buyController')); // buy 라우터 + controllers 연결
+
+
 // 2. 구글 인증
 app.post(
   '/auth/google/register',
