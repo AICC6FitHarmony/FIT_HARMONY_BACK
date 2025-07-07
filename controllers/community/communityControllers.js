@@ -1,56 +1,40 @@
 const { sendQuery } = require('../../config/database'); 
 
-const getAllPosts = async (req,res)=>{
-  try {
-    const posts = await sendQuery(
-      `
-      select post_id, user_id, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
-      from post
-      where is_deleted = false
-      `
-    );
-    res.json(posts);
-  } catch (error) {
-    res.json({msg:error, success:false})
-  }
-}
+const PAGE_COUNT = 10;
 
 const getPosts = async (req,res)=>{
-  const {board_id} = req.params;
-  if (!board_id){
-    try {
-      const posts = await sendQuery(
-        `
-        select post_id, user_id, nick_name, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
-        from post
-        left join (select nick_name,user_name, user_id as usr_id from "USER") as usr
-        on usr.usr_id = post.user_id
-        where is_deleted = FALSE
-        order by post_id desc
-        `
-      );
-      console.log("all",posts);
-      res.json(posts);
-    } catch (error) {
-      res.json({msg:error, success:false})
-    }
-    return;
-  }
-
+  const {boardId} = req.params;
+  const {page, keyword, key_type} = req.query;
   try {
-    const posts = await sendQuery(
-      `
-      select post_id, user_id, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
+    let page_num = page?page:0;
+    const searchQuery = `and ${key_type} like '%${keyword}%'`
+    console.log(req.originalUrl);
+    // console.log("BoardID",keyword,`${(keyword&&keyword!=='null'&&keyword!=='undefined')? searchQuery : ""}`)
+    const query = `
+      select
+        post_id, user_id, nick_name, category_id, title, view_cnt, 
+        parent_post_id, path, depth, created_time, updated_time,
+        (select count(*) from comment as c where c.post_id = post.post_id) as comment_cnt
       from post
-      where is_deleted = false and category_id = $1
+      left join (select nick_name,user_name, user_id as usr_id from "USER") as usr
+      on usr.usr_id = post.user_id
+      where 
+        is_deleted = FALSE
+        ${(boardId&&boardId!=='undefined')?`and category_id = ${boardId}`: ""}
+        ${(keyword&&keyword!=='null'&&keyword!=='undefined')? searchQuery : ""}
       order by post_id desc
-      `,[board_id]
-    );
-    console.log(posts);
+      limit ${PAGE_COUNT}
+      offset ${page_num}
+      `
+    console.log(query);
+    const posts = await sendQuery(query);
+    console.log("search Count : ",posts.length);
     res.json(posts);
   } catch (error) {
-    res.json({msg:error, success:false});
+    console.log(error);
+    res.json({success:false})
   }
+  return;
 }
 
 const getPost = async (req,res)=>{
