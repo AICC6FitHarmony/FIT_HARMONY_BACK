@@ -75,15 +75,6 @@ const getTrainerDetail = async (req, res) => {
     GROUP BY u.user_id, u.user_name, u.fit_history, u.introduction, u.file_id, g.gym, g.gym_address
   `;
 
-  //   select
-  // u.user_id,
-  // p.name,
-  // p.description, p.price,
-  // p.type,
-  // p. session_cnt
-  //  FROM "USER" u
-
-  // 	LEFT OUTER JOIN products p ON u.user_id = p.user_id
   try {
     const result = await sendQuery(trainerDetailQuery, [userId]); //★★★★★★
     res.status(200).json({
@@ -100,7 +91,80 @@ const getTrainerDetail = async (req, res) => {
   }
 };
 
+const getTrainerProduct = async (req, res) => {
+  console.log('[📦] getTrainerProduct 진입, userId:', req.params.id);
+  const userId = req.params.id;
+
+  const trainerProductQuery = `
+
+      select
+      u.user_id,
+      p.name,
+      p.description, p.price,
+      p.type,
+      p. session_cnt
+
+    FROM "USER" u
+  	LEFT OUTER JOIN products p ON u.user_id = p.user_id
+
+    WHERE u.user_id = $1
+   `;
+
+  try {
+    const productresult = await sendQuery(trainerProductQuery, [userId]);
+    res.status(200).json({
+      success: true,
+      data: productresult,
+      message: '트레이너 상세 조회 성공',
+    });
+  } catch (error) {
+    console.error('트레이너 상세 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다',
+    });
+  }
+};
+
+const getTrainerReview = async (req, res) => {
+  const userId = req.params.id;
+
+  const trainerReviewQuery = `
+  SELECT
+    r.user_id,
+    u.user_name,
+    r.rating,
+    r.content,
+    TO_CHAR(r.updated_time, 'YYYY-MM-DD') AS formatted_date
+  FROM "USER" u
+  LEFT OUTER JOIN review r ON r.user_id = u.user_id
+  WHERE r.product_id IN (
+  SELECT product_id FROM products
+  WHERE user_id = $1
+  )
+    ORDER BY RANDOM()
+    LIMIT 3;
+
+  `;
+  try {
+    const reiviewresult = await sendQuery(trainerReviewQuery, [userId]);
+    res.status(200).json({
+      success: true,
+      data: reiviewresult,
+      message: '트레이너 상세 조회 성공',
+    });
+  } catch (error) {
+    console.error('트레이너 상세 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '서버 오류가 발생했습니다',
+    });
+  }
+};
+
 module.exports = {
   getTrainerList,
   getTrainerDetail,
+  getTrainerProduct,
+  getTrainerReview,
 };
