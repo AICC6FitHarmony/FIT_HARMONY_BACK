@@ -350,7 +350,8 @@ const schedulerControllers = [
 
                                         resolve({
                                             success:true,
-                                            message:"success"
+                                            message:"success",
+                                            dietId:dietId
                                         });
                                     }else{
                                         reject({
@@ -521,7 +522,13 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
                         d.diet_id as schedule_id,
                         'D' as status,
                         d.regist_date as start_time,
-                        d.regist_date + interval '1 hour' as end_time,
+                        (
+                            case 
+                                when d.regist_date + interval '1 hour' >= d.regist_date::date + interval '1 day' then
+                                (d.regist_date::date + interval '1 day') - interval '1 second'
+                                else d.regist_date + interval '1 hour'
+                            end
+                        ),
                         1 as excersize_cnt,
                         '' as excersise_division,
                         d.total_calorie,
