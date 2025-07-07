@@ -1,4 +1,5 @@
 const express = require('express');
+const { getGyms, createGym } = require('../../controllers/login/gymControllers');
 const router = express.Router();
 
 // 미들웨어 - 인증 확인 (필요시 사용)
@@ -20,5 +21,8 @@ router.post('/logout', (req, res, next) => {
     res.json({ message: 'Logged out successfully' });
   });
 });
+
+router.get('/gym',getGyms);
+router.post('/gym',createGym);
 
 module.exports = router; 
