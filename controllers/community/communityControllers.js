@@ -1,35 +1,157 @@
 const { sendQuery } = require('../../config/database'); 
 
-const PAGE_COUNT = 10;
+const PAGE_NUM = 10;
+
+
+const getPageCount = async (req,res)=>{
+  const { boardId } = req.params;
+  const { keyword, key_type } = req.query;
+  
+  const allowedKeyTypes = ["title", "nick_name", "content"];
+  const keyTypeSafe = allowedKeyTypes.includes(key_type) ? key_type : null;
+  
+  const params = [];
+  let paramIdx = 1;
+  
+  const whereClauses = ["is_deleted = FALSE"];
+  
+  if (boardId && boardId !== "undefined") {
+    whereClauses.push(`category_id = $${paramIdx++}`);
+    params.push(parseInt(boardId, 10));
+  }
+  
+  if (
+    keyword &&
+    keyword !== "null" &&
+    keyword !== "undefined" &&
+    keyword.trim() !== "" &&
+    keyTypeSafe
+  ) {
+    const keywordParam = `%${keyword}%`;
+  
+    if (keyTypeSafe === "content") {
+      const keywordParam = `%${keyword}%`;
+      const contentClause = `content::jsonb::text ILIKE $${paramIdx++}`;
+      whereClauses.push(contentClause);
+      params.push(keywordParam);
+    } else {
+      whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+      params.push(keywordParam);
+    }
+  }
+  
+  const query = `
+    SELECT COUNT(*) AS total_count
+    FROM post
+    WHERE ${whereClauses.join(' AND ')}
+  `;
+  
+  // 로깅
+  // console.log("COUNT QUERY", query);
+  // console.log("COUNT PARAMS", params);
+  
+  
+  try {
+    const result = await sendQuery(query, params);
+    // const result = await sendQuery(query);
+    const pageCount =  Math.ceil(result[0].totalCount/PAGE_NUM);
+    // console.log(result)
+    // res.json({pageCount, success:true});
+    return pageCount;
+  } catch (error) {
+    console.log(error);
+    // res.json({success:false});
+    return 1;
+  }
+}
 
 const getPosts = async (req,res)=>{
   const {boardId} = req.params;
   const {page, keyword, key_type} = req.query;
   try {
-    let page_num = page?page:0;
-    const searchQuery = `and ${key_type} like '%${keyword}%'`
-    console.log(req.originalUrl);
-    // console.log("BoardID",keyword,`${(keyword&&keyword!=='null'&&keyword!=='undefined')? searchQuery : ""}`)
+    let page_num = 0;
+    if (page && !isNaN(parseInt(page, 10))) {
+      page_num = (parseInt(page, 10) - 1) * PAGE_NUM;
+    }
+    if (page_num < 0) page_num = 0;
+
+    const allowedKeyTypes = ["title", "nick_name", "content"];
+    const keyTypeSafe = allowedKeyTypes.includes(key_type) ? key_type : null;
+    
+    const params = [];
+    let paramIdx = 1;
+    
+    const whereClauses = ["is_deleted = FALSE"];
+    
+    if (boardId && boardId !== "undefined") {
+      whereClauses.push(`category_id = $${paramIdx++}`);
+      params.push(parseInt(boardId, 10));
+    }
+    
+    // keyword가 값이 있을 때만 조건 추가
+    if (
+      keyword &&
+      keyword !== "null" &&
+      keyword !== "undefined" &&
+      keyword.trim() !== "" &&
+      keyTypeSafe
+    ) {
+      const keywordParam = `%${keyword}%`;
+    
+      if (keyTypeSafe === "content") {
+        const keywordParam = `%${keyword}%`;
+        // const contentClause = `
+        //   EXISTS (
+        //     SELECT 1
+        //     FROM jsonb_array_elements(content::jsonb->'content') AS lvl1
+        //     JOIN LATERAL jsonb_each(lvl1) AS f1(key1, val1) ON TRUE
+        //     LEFT JOIN LATERAL jsonb_array_elements(val1->'content') AS lvl2 ON TRUE
+        //     LEFT JOIN LATERAL jsonb_each(lvl2) AS f2(key2, val2) ON TRUE
+        //     WHERE
+        //       (
+        //         (key1 = 'text' AND val1::text ILIKE $${paramIdx})
+        //         OR
+        //         (key2 = 'text' AND val2::text ILIKE $${paramIdx})
+        //       )
+        //   )
+        // `;
+        // whereClauses.push(contentClause);
+        whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+        params.push(keywordParam);
+      } else {
+        whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+        params.push(keywordParam);
+      }
+    }
+
     const query = `
-      select
-        post_id, user_id, nick_name, category_id, title, view_cnt, 
-        parent_post_id, path, depth, created_time, updated_time,
-        (select count(*) from comment as c where c.post_id = post.post_id) as comment_cnt
-      from post
-      left join (select nick_name,user_name, user_id as usr_id from "USER") as usr
-      on usr.usr_id = post.user_id
-      where 
-        is_deleted = FALSE
-        ${(boardId&&boardId!=='undefined')?`and category_id = ${boardId}`: ""}
-        ${(keyword&&keyword!=='null'&&keyword!=='undefined')? searchQuery : ""}
-      order by post_id desc
-      limit ${PAGE_COUNT}
-      offset ${page_num}
-      `
-    console.log(query);
-    const posts = await sendQuery(query);
-    console.log("search Count : ",posts.length);
-    res.json(posts);
+  SELECT
+    post_id, user_id, nick_name, category_id, title, view_cnt, 
+    parent_post_id, path, depth, created_time, updated_time, content,
+    (
+      SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id
+    ) AS comment_cnt
+  FROM post
+  LEFT JOIN (
+    SELECT nick_name, user_name, user_id AS usr_id FROM "USER"
+  ) AS usr
+  ON usr.usr_id = post.user_id
+  WHERE ${whereClauses.join(' AND ')}
+  ORDER BY post_id DESC
+  LIMIT $${paramIdx}
+  OFFSET $${paramIdx + 1}
+`;
+
+// LIMIT, OFFSET 고정 위치
+
+params.push(Number(PAGE_NUM));
+params.push(Number(page_num));
+    console.log("QUERY", query);
+    console.log("PARAMS", params);
+    const posts = await sendQuery(query,params);
+    const pageCount = await getPageCount(req,res);
+    console.log("search Count : ",posts.length + " : " + pageCount);
+    res.json({data:{posts,pageCount}, success:true});
   } catch (error) {
     console.log(error);
     res.json({success:false})
@@ -55,14 +177,13 @@ const getPost = async (req,res)=>{
     if ((!posts)||posts.length == 0){
       res.status(404).json({msg:"게시물을 찾을수 없습니다.", success:false})
       return;
-    }
-    const result = {
-      ...posts[0], success:true
-    }
-  
-    res.status(200).json(result);
+    }  
+    res.status(200).json({
+      data:posts[0],
+      success:true
+    });
   } catch (error) {
-    res.json({msg:error, success:false})
+    res.json({success:false})
   }
   
 }
@@ -157,9 +278,9 @@ const getComments = async (req, res)=>{
       order by path
       `,[postId]
     );
-    res.json(comments);
+    res.json({data:{comments}, success:true});
   } catch (error) {
-    res.json({msg:error, success:false});
+    res.json({success:false});
   }
 }
 
