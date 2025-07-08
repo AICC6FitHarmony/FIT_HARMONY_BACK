@@ -30,10 +30,15 @@ const getPageCount = async (req,res)=>{
     const keywordParam = `%${keyword}%`;
   
     if (keyTypeSafe === "content") {
-      const keywordParam = `%${keyword}%`;
-      const contentClause = `content::jsonb::text ILIKE $${paramIdx++}`;
-      whereClauses.push(contentClause);
-      params.push(keywordParam);
+    const contentClause = `
+      EXISTS (
+        SELECT 1
+        FROM jsonb_path_query(content::jsonb, '$.**.text') AS t(text_value)
+        WHERE trim(t.text_value::text, '"') ILIKE $${paramIdx++}
+      )
+    `;
+    whereClauses.push(contentClause);
+    params.push(`%${keyword}%`);
     } else {
       whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
       params.push(keywordParam);
@@ -101,28 +106,15 @@ const getPosts = async (req,res)=>{
       const keywordParam = `%${keyword}%`;
     
       if (keyTypeSafe === "content") {
-        // const keywordParam = `%"\text\",\"text\":\"${keyword}"%`;
-        const keywordParam = `%${keyword}%`;
-
-        // SELECT * FROM POST WHERE CONTENT LIKE '%"\text\",\"text\":\"43"%’
-        // const contentClause = `
-        //   EXISTS (
-        //     SELECT 1
-        //     FROM jsonb_array_elements(content::jsonb->'content') AS lvl1
-        //     JOIN LATERAL jsonb_each(lvl1) AS f1(key1, val1) ON TRUE
-        //     LEFT JOIN LATERAL jsonb_array_elements(val1->'content') AS lvl2 ON TRUE
-        //     LEFT JOIN LATERAL jsonb_each(lvl2) AS f2(key2, val2) ON TRUE
-        //     WHERE
-        //       (
-        //         (key1 = 'text' AND val1::text ILIKE $${paramIdx})
-        //         OR
-        //         (key2 = 'text' AND val2::text ILIKE $${paramIdx})
-        //       )
-        //   )
-        // `;
-        // whereClauses.push(contentClause);
-        whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
-        params.push(keywordParam);
+      const contentClause = `
+          EXISTS (
+            SELECT 1
+            FROM jsonb_path_query(content::jsonb, '$.**.text') AS t(text_value)
+            WHERE trim(t.text_value::text, '"') ILIKE $${paramIdx++}
+          )
+        `;
+        whereClauses.push(contentClause);
+        params.push(`%${keyword}%`);
       } else {
         whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
         params.push(keywordParam);
@@ -151,8 +143,8 @@ const getPosts = async (req,res)=>{
 
 params.push(Number(PAGE_NUM));
 params.push(Number(page_num));
-    console.log("QUERY", query);
-    console.log("PARAMS", params);
+    // console.log("QUERY", query);
+    // console.log("PARAMS", params);
     const posts = await sendQuery(query,params);
     const pageCount = await getPageCount(req,res);
     console.log("search Count : ",posts.length + " : " + pageCount);
