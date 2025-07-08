@@ -24,6 +24,7 @@ const getBoards = async(req, res)=>{
   const query = `select * from post_category order by category_name`;
   try {
     const result = await sendQuery(query);
+
     if(result.length === 0){
       res?.json({success: false});
       return {success: false}; 
@@ -51,11 +52,11 @@ const getPermissions = async(req, res)=>{
 }
 
 const getPermission = async(req, res)=>{
-  const {boardId} = req.params;
-  const {role, permission} = req.query;
-
+  const {} = req.params;
+  const {role, permission, boardId} = req.query;
+  console.log(req.query)
   const query = `select 1 from post_category_permission 
-                where board_id = $1 and role = $2 and permission = $3`;
+                where category_id = $1 and role = $2 and permission = $3`;
   const values = [boardId,role,permission];
   
   try {
