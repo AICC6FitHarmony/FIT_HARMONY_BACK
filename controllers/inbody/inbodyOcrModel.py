@@ -1,10 +1,10 @@
 import sys
 import os
 import json
+from datetime import datetime, timedelta
 from paddleocr import PaddleOCR
 import psycopg2
 from dotenv import load_dotenv
-from datetime import datetime
 import logging
 import re
 from PIL import Image
@@ -12,6 +12,8 @@ import base64
 import io
 import cv2
 import numpy as np
+import openai
+
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -19,9 +21,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ],
+    handlers=[logging.StreamHandler(sys.stdout)],
     encoding='utf-8'
 )
 
@@ -39,50 +39,49 @@ file_id = sys.argv[2]
 # ---------------- DB 조회 ----------------
 class DBAgent:
     def conn(self):
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+        return psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, 
+            user=DB_USER, password=DB_PASSWORD
         )
-        return conn
-    
+        
     def get_file_info(self):
+        conn = None
+        cur = None
         try:
             conn = self.conn()
             cur = conn.cursor()
-            cur.execute(f"""
+            cur.execute("""
                 SELECT FILE_PATH
                 FROM FILE 
-                WHERE FILE_ID = {file_id}
-            """)
+                WHERE FILE_ID = %s
+            """, (file_id,))
             row = cur.fetchone()
-            return row[0]
+            return row[0] if row else None
         except Exception as e:
             error_except("DB 연결 실패: " + str(e))
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
 
 # ---------------- 이미지 전처리 ----------------
-def resize_and_encode_image(file_path: str, max_size=(1024, 1024)) -> str:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-    normalized_path = file_path.lstrip('/')
-    image_path = os.path.join(base_dir, normalized_path)
-    
-    img = Image.open(image_path)
-    img.thumbnail(max_size)  # 크기 비율 유지하면서 축소
-    buffered = io.BytesIO()
-    img.save(buffered, format="JPEG")
-    img_bytes = buffered.getvalue()
-    return base64.b64encode(img_bytes).decode("utf-8")
-
 def deskew_image(file_path):
     # 이미지 열기
     img = cv2.imread(file_path, cv2.IMREAD_COLOR)
+    if img is None:
+        error_except(f"이미지를 읽을 수 없습니다: {file_path}")
+    
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # 이진화
     _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     # 좌표 추출
     coords = np.column_stack(np.where(bw > 0))
+    
+    if len(coords) == 0:
+        # 텍스트가 없는 경우 원본 이미지 반환
+        return Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    
     angle = cv2.minAreaRect(coords)[-1]
     # 각도 보정
     if angle < -45:
@@ -98,18 +97,23 @@ def deskew_image(file_path):
     return Image.fromarray(cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB))
 
 # ---------------- OCR 분석 ----------------
-def analyze_inbody_image(image_path: str) -> dict:
+def analyze_inbody_image(image_input) -> dict:
     try:
         # PaddleOCR 초기화 (한국어 지원)
         ocr = PaddleOCR(use_textline_orientation=True, lang='korean')
         
         # 이미지에서 텍스트 추출
-        results = ocr.predict(image_path)
+        # PIL Image인 경우 numpy 배열로 변환
+        if hasattr(image_input, 'mode'):  # PIL Image 객체인 경우
+            import numpy as np
+            image_array = np.array(image_input)
+            results = ocr.predict(image_array)
+        else:  # 파일 경로인 경우
+            results = ocr.predict(image_input)
         
         # PaddleOCR 결과 처리
-        extracted_texts = []
         text_bbox = []
-        print(f"전체 results 구조: {type(results)}", file=sys.stderr)
+        input_data = {}
         
         if results and len(results) > 0:
             # results[0]는 딕셔너리 형태
@@ -118,78 +122,22 @@ def analyze_inbody_image(image_path: str) -> dict:
             # rec_texts에서 텍스트 추출
             if 'rec_texts' in result_dict:
                 rec_texts = result_dict['rec_texts']
-                rec_scores = result_dict.get('rec_scores', [])
                 rec_boxes = result_dict.get('rec_boxes', [])
-                
                 print(f"OCR 결과: {len(rec_texts)}개의 텍스트 블록 발견", file=sys.stderr)
-                
                 for i, text in enumerate(rec_texts):
-                    confidence = rec_scores[i] if i < len(rec_scores) else 0.0
                     bbox = rec_boxes[i] if i < len(rec_boxes) else []
                     
                     if len(bbox) >= 4:
-                        x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
-                        text_bbox.append((text, [[x1,y1], [x2,y2]]))
-                        print(f"text_bbox: {text_bbox}", file=sys.stderr)
+                        x_min, y_min, x_max, y_max = bbox[0], bbox[1], bbox[2], bbox[3]
+                        input_data = {"text": text, "x_min": x_min, "y_min": y_min, "x_max": x_max, "y_max": y_max}
+                        text_bbox.append(input_data)
                     
-                    extracted_texts.append(text)
+        print(f"text_bbox: {text_bbox}", file=sys.stderr)
         
-        # 추출된 텍스트들을 하나의 문자열로 결합
-        extracted_text = ' '.join(extracted_texts)
-        
-        # 인바디 데이터 추출
-        inbody_data = extract_inbody_data(extracted_text)
-        
-        return inbody_data
+        return text_bbox
         
     except Exception as e:
         error_except(f"OCR 분석 오류: {e}")
-
-# ---------------- 인바디 데이터 추출 ----------------
-def extract_inbody_data(text: str) -> dict:
-    # 정규표현식 패턴들
-    patterns = {
-        'weight': r'체중[:\s]*(\d+\.?\d*)',
-        'bodyWater': r'체수분[:\s]*(\d+\.?\d*)',
-        'inbodyScore': r'인바디점수[:\s]*(\d+)',
-        'protein': r'단백질[:\s]*(\d+\.?\d*)',
-        'bodyMineral': r'무기질[:\s]*(\d+\.?\d*)',
-        'bodyFat': r'체지방[:\s]*(\d+\.?\d*)',
-        'bodyFatPercent': r'체지방률[:\s]*(\d+\.?\d*)',
-        'bmi': r'BMI[:\s]*(\d+\.?\d*)',
-        'skeletalMuscle': r'골격근량[:\s]*(\d+\.?\d*)',
-        'trunkMuscle': r'몸통근육량[:\s]*(\d+\.?\d*)',
-        'leftArmMuscle': r'왼팔근육량[:\s]*(\d+\.?\d*)',
-        'rightArmMuscle': r'오른팔근육량[:\s]*(\d+\.?\d*)',
-        'leftLegMuscle': r'왼다리근육량[:\s]*(\d+\.?\d*)',
-        'rightLegMuscle': r'오른다리근육량[:\s]*(\d+\.?\d*)',
-        'trunkFat': r'몸통체지방[:\s]*(\d+\.?\d*)',
-        'leftArmFat': r'왼팔체지방[:\s]*(\d+\.?\d*)',
-        'rightArmFat': r'오른팔체지방[:\s]*(\d+\.?\d*)',
-        'leftLegFat': r'왼다리체지방[:\s]*(\d+\.?\d*)',
-        'rightLegFat': r'오른다리체지방[:\s]*(\d+\.?\d*)'
-    }
-    
-    extracted_data = {}
-    
-    for field, pattern in patterns.items():
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            try:
-                value = float(match.group(1))
-                extracted_data[field] = value
-                print(f"{field}: {value}", file=sys.stderr)
-            except ValueError:
-                print(f"{field} 값 변환 실패: {match.group(1)}", file=sys.stderr)
-    
-    # 필수 필드 검증
-    required_fields = ['weight', 'bodyWater', 'inbodyScore']
-    missing_fields = [field for field in required_fields if field not in extracted_data]
-    
-    if missing_fields:
-        print(f"필수 필드 누락: {missing_fields}", file=sys.stderr)
-    
-    return extracted_data
 
 # ---------------- 실행 흐름 ----------------
 def run():
@@ -213,10 +161,14 @@ def process_inbody_ocr():
         normalized_path = file_path.lstrip('/')
         image_path = os.path.join(base_dir, normalized_path)
         
+        # 파일 존재 확인
+        if not os.path.exists(image_path):
+            error_except(f"이미지 파일이 존재하지 않습니다: {image_path}")
+        
         # 이미지 보정
         deskewed_image = deskew_image(image_path)
         
-        # OCR 분석 실행
+        # OCR 분석 실행 (PIL Image 객체 직접 전달)
         inbody_data = analyze_inbody_image(deskewed_image)
         
         print("=============== inbody_ocr 결과 ==============", file=sys.stderr)
