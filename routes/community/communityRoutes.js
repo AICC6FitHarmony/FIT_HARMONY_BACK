@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {getPosts, createPost, getPost, getAllPosts, deletePost, getComments, createComment, deleteComment, updateComment, updatePost} = require('../../controllers/community/communityControllers');
+const {getBoardInfo, getBoards} = require('../../controllers/community/boardControllers');
 const upload = require('../login/uploads');
 
 // 미들웨어 - 인증 확인 (필요시 사용)
@@ -23,4 +24,8 @@ router.get('/comments/:postId', getComments);
 router.post('/comment/create', createComment);
 router.delete('/comment',deleteComment);
 router.put('/comment', updateComment);
+
+router.get('/board/list',getBoards);
+router.get('/board/:boardId', getBoardInfo);
+
 module.exports = router; 

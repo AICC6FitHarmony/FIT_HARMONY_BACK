@@ -82,8 +82,8 @@ const getPosts = async (req,res)=>{
     let paramIdx = 1;
     
     const whereClauses = ["is_deleted = FALSE"];
-    
-    if (boardId && boardId !== "undefined") {
+    console.log("BoardID : ", boardId)
+    if (boardId && boardId !== "undefined" && boardId !== "NaN" && boardId !== NaN) {
       whereClauses.push(`category_id = $${paramIdx++}`);
       params.push(parseInt(boardId, 10));
     }
@@ -91,6 +91,8 @@ const getPosts = async (req,res)=>{
     // keyword가 값이 있을 때만 조건 추가
     if (
       keyword &&
+      keyword !== NaN &&
+      keyword !== "NaN" &&
       keyword !== "null" &&
       keyword !== "undefined" &&
       keyword.trim() !== "" &&
@@ -99,7 +101,10 @@ const getPosts = async (req,res)=>{
       const keywordParam = `%${keyword}%`;
     
       if (keyTypeSafe === "content") {
+        // const keywordParam = `%"\text\",\"text\":\"${keyword}"%`;
         const keywordParam = `%${keyword}%`;
+
+        // SELECT * FROM POST WHERE CONTENT LIKE '%"\text\",\"text\":\"43"%’
         // const contentClause = `
         //   EXISTS (
         //     SELECT 1
@@ -243,7 +248,7 @@ const updatePost = async (req,res)=>{
   }
   const {userId:authId} = req.user;
   const form = req.body;
-  const {post_id, title, content} = form;
+  const {post_id, title, content,board_id} = form;
 
   const target = await sendQuery(`select user_id from post where post_id = $1`,[post_id]);
   if(target.length ===0)
@@ -255,7 +260,7 @@ const updatePost = async (req,res)=>{
     res.json({msg:"권한이 없습니다.", success:false});
     return;
   }
-  await sendQuery(`update post set title = $1, content = $2 where post_id = $3`,[title,content,post_id]);
+  await sendQuery(`update post set title = $1, content = $2, category_id = $4 where post_id = $3`,[title,content,post_id,board_id]);
   res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
