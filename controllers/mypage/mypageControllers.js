@@ -75,7 +75,7 @@ const mypageControllers = [
                         GYM,
                         fileId
                     } = params;
-                    console.log("===============================================================params", params)
+                    
                     // 빈 값들을 null로 초기화
                     const cleanHeight = height != '' ? height : null;
                     const cleanWeight = weight != '' ? weight : null;
@@ -314,8 +314,6 @@ const mypageControllers = [
                     const userId = params.userId;
                     const type = params.type;
                     const reason = params.reason;
-
-                    console.log("params", params)
 
                     if (request.user.userId != userId) {
                         return {

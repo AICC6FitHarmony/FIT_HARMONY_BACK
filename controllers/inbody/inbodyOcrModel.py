@@ -123,7 +123,6 @@ def analyze_inbody_image(image_input) -> dict:
             if 'rec_texts' in result_dict:
                 rec_texts = result_dict['rec_texts']
                 rec_boxes = result_dict.get('rec_boxes', [])
-                print(f"OCR 결과: {len(rec_texts)}개의 텍스트 블록 발견", file=sys.stderr)
                 for i, text in enumerate(rec_texts):
                     bbox = rec_boxes[i] if i < len(rec_boxes) else []
                     
@@ -134,8 +133,6 @@ def analyze_inbody_image(image_input) -> dict:
                         input_data = {"text": text, "x_min": int(x_min), "y_min": int(y_min), "x_max": int(x_max), "y_max": int(y_max)}
                         text_bbox.append(input_data)
                     
-        print(f"text_bbox: {text_bbox}", file=sys.stderr)
-        
         return text_bbox
         
     except Exception as e:
@@ -144,7 +141,6 @@ def analyze_inbody_image(image_input) -> dict:
 # ---------------- GPT 인바디 텍스트 분석 ----------------
 def analyze_inbody_text(text_bbox: list) -> dict:
 
-    print("analyze_inbody_text 시작", file=sys.stderr)
     response = openai.chat.completions.create(
         model=model,
         temperature=0.2,  # 감정온도 : 가능한 낮춰서 좀도 결정론적으로 응답하도록 처리
@@ -194,9 +190,6 @@ def analyze_inbody_text(text_bbox: list) -> dict:
     cleaned = re.sub(r'```(?:json)?\s*([\s\S]*?)\s*```', r'\1', response.choices[0].message.content)
     result = cleaned.replace('```', '').replace('json', '').strip()
     
-    logging.info("================ analyze_inbody_text ==================")
-    logging.info(result)
-
     # JSON 파싱 시도
     try:
         parsed_result = json.loads(result)
@@ -267,7 +260,6 @@ def process_inbody_ocr():
 
         # GPT 텍스트 분석 실행
         analyzed_text_data = analyze_inbody_text(text_bbox)
-
 
         print("=============== inbody_ocr 결과 ==============", file=sys.stderr)
         

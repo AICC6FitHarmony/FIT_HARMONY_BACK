@@ -8,8 +8,6 @@ const getUserInbodyDayData = async (req, res) => {
     try {
         const { userId } = req.params;
         const { inbodyTime } = req.query;
-        console.log("userId", userId);
-        console.log("inbodyTime", inbodyTime);
         // 최근 인바디 데이터 조회
         const inbodyQuery = `
             SELECT 
@@ -99,7 +97,6 @@ const getUserInbodyMonthData = async (req, res) => {
         const inbodyTimeResult = await sendQuery(inbodyTimeQuery, [userId,startDate, endDate]);
         
         if (inbodyTimeResult && inbodyTimeResult.length > 0) {
-            console.log("inbodyTimeResult : ", inbodyTimeResult);
             res.status(200).json({
                 inbodyTimeResult: inbodyTimeResult
             });
@@ -207,7 +204,6 @@ const insertInbodyData = async (req, res) => {
         ];
 
         const userValues = [weight, userId];
-        console.log("values 210 line controller : ", values);
         const result = await sendQuery(insertQuery, values);
         const userResult = await sendQuery(updateUserQuery, userValues);
 
@@ -358,7 +354,6 @@ const requestInbodyOcr = async (req, res) => {
                 message: '파일 ID가 필요합니다.'
             });
         }
-        console.log("fileId 361 line controller : ", fileId);
         // 파일 존재 여부 확인
         const fileCheck = await sendQuery('select file_id from file where file_id = $1', [fileId]);
         if (!fileCheck || fileCheck.length == 0) {
@@ -369,8 +364,8 @@ const requestInbodyOcr = async (req, res) => {
         }
 
         // Python 스크립트 실행
-        // const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
-        const pythonEnvPath = 'python';
+        const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
+        // const pythonEnvPath = 'python';
         const pyScriptPath = path.join(__dirname, 'inbodyOcrModel.py');
         const aiRequestDiv = "inbody_ocr";
         const model = process.env.GPT_4_o; // 모델명 추가
@@ -383,7 +378,6 @@ const requestInbodyOcr = async (req, res) => {
 
             let result = '';
             child.stdout.on('data', (data) => {
-                console.log("=======================================================================")
                 console.log('PYTHON STDOUT:', data.toString());
                 result += data.toString();
             });
