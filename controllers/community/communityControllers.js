@@ -1,4 +1,5 @@
 const { sendQuery } = require('../../config/database'); 
+const { getPermission } = require('./boardControllers');
 
 const PAGE_NUM = 10;
 
@@ -197,6 +198,15 @@ const createPost = async (req,res)=>{
     const path = "/";
     const depth = 1;
     // console.log(content)
+    const permission = await getPermission({query:{
+      role:user.role, boardId: board_id, permission:'write'
+    }});
+    console.log("this Permission : ", permission);
+    if(permission == false){
+      res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+      return;
+    }
+
     posts = await sendQuery("insert into post(user_id, category_id, title, content, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7) returning post_id",
       [userId, board_id, title, content, path, depth,false]);
     // console.log(posts);
@@ -238,6 +248,7 @@ const updatePost = async (req,res)=>{
   if (req.isAuthenticated() == false){
     return res.json({msg:"회원이 아닙니다."});
   }
+  const {user} = req;
   const {userId:authId} = req.user;
   const form = req.body;
   const {post_id, title, content,board_id} = form;
@@ -246,6 +257,17 @@ const updatePost = async (req,res)=>{
   if(target.length ===0)
     return res.json({msg:"찾을 수 없는 게시글 입니다.", success:false});
   const dbUser = target[0].userId;
+
+  const permission = await getPermission({query:{
+    role:user.role, boardId: board_id, permission:'write'
+  }});
+  console.log("this Permission : ", permission);
+  if(permission == false){
+    res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+    return;
+  }
+
+
   console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
