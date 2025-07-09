@@ -1,9 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { getUserInbodyDayData, getUserInbodyMonthData, insertInbodyData, updateInbodyData } = require('../../controllers/inbody/inbodyControllers');
+const { getUserInbodyDayData, getUserInbodyMonthData, insertInbodyData, updateInbodyData, requestInbodyOcr } = require('../../controllers/inbody/inbodyControllers');
 
 // 미들웨어 - 인증 확인 (필요시 사용)
 // const { authenticateToken } = require('../../middleware/auth');
+
+/**
+ * @route   POST /inbody/requestOcr
+ * @desc    인바디 결과지 OCR 분석 요청
+ * @access  Public (또는 Private - 인증 필요시)
+ */
+router.post('/requestOcr', requestInbodyOcr);
+
+/**
+ * @route   PUT /inbody/update
+ * @desc    특정 사용자의 Inbody 데이터 수정
+ * @access  Public (또는 Private - 인증 필요시)
+ */
+router.put('/update', updateInbodyData);
 
 /**
  * @route   GET /inbody/:userId?inbodyTime=:inbodyTime
@@ -25,12 +39,5 @@ router.get('/:userId/month', getUserInbodyMonthData);
  * @access  Public (또는 Private - 인증 필요시)
  */
 router.post('/:userId', insertInbodyData);
-
-/**
- * @route   PUT /inbody/update
- * @desc    특정 사용자의 Inbody 데이터 수정
- * @access  Public (또는 Private - 인증 필요시)
- */
-router.put('/update', updateInbodyData);
 
 module.exports = router; 

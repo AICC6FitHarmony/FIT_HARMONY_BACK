@@ -24,7 +24,6 @@ logging.basicConfig(
     ]
 )
 
-
 load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST")

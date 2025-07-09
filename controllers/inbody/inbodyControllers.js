@@ -1,6 +1,9 @@
 const { sendQuery } = require('../../config/database');
+const { spawn } = require('child_process');
+const path = require('path');
+const dotenv = require('dotenv');
 
-// 특정 사용자의 Inbody 데이터 조회
+dotenv.config();
 const getUserInbodyDayData = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -204,7 +207,7 @@ const insertInbodyData = async (req, res) => {
         ];
 
         const userValues = [weight, userId];
-
+        console.log("values 210 line controller : ", values);
         const result = await sendQuery(insertQuery, values);
         const userResult = await sendQuery(updateUserQuery, userValues);
 
@@ -344,9 +347,86 @@ const updateInbodyData = async (req, res) => {
     }
 };
 
+// 인바디 OCR 분석 요청
+const requestInbodyOcr = async (req, res) => {
+    try {
+        const { fileId } = req.body;
+        
+        if (!fileId) {
+            return res.status(400).json({
+                success: false,
+                message: '파일 ID가 필요합니다.'
+            });
+        }
+        console.log("fileId 361 line controller : ", fileId);
+        // 파일 존재 여부 확인
+        const fileCheck = await sendQuery('select file_id from file where file_id = $1', [fileId]);
+        if (!fileCheck || fileCheck.length == 0) {
+            return res.status(400).json({
+                success: false,
+                message: '파일을 찾을 수 없습니다.'
+            });
+        }
+
+        // Python 스크립트 실행
+        // const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
+        const pythonEnvPath = 'python';
+        const pyScriptPath = path.join(__dirname, 'inbodyOcrModel.py');
+        const aiRequestDiv = "inbody_ocr";
+
+        const ocrResult = await new Promise((resolve, reject) => {
+            const child = spawn(pythonEnvPath, [pyScriptPath, aiRequestDiv, fileId], {
+                env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+            });
+
+            let result = '';
+            child.stdout.on('data', (data) => {
+                console.log("=======================================================================")
+                console.log('PYTHON STDOUT:', data.toString());
+                result += data.toString();
+            });
+
+            child.stderr.on('data', (data) => {
+                console.error('/inbody/requestOcr', data.toString());
+            });
+
+            child.on('close', async (code) => {
+                if (code !== 0) {
+                    reject(`종료 코드 ${code}`);
+                } else {
+                    try {
+                        const parsedResult = JSON.parse(result);
+                        if (parsedResult.success === 'true') {
+                            resolve(parsedResult.content);
+                        } else {
+                            reject(parsedResult.message || 'OCR 분석 실패');
+                        }
+                    } catch (err) {
+                        reject('결과 파싱 실패');
+                    }
+                }
+            });
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'OCR 분석이 완료되었습니다.',
+            data: ocrResult
+        });
+
+    } catch (error) {
+        console.error('인바디 OCR 분석 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: 'OCR 분석 중 오류가 발생했습니다.'
+        });
+    }
+};
+
 module.exports = {
     getUserInbodyDayData,
     getUserInbodyMonthData,
     insertInbodyData,
-    updateInbodyData
+    updateInbodyData,
+    requestInbodyOcr
 }; 

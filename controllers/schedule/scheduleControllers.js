@@ -19,10 +19,11 @@ const schedulerControllers = [
                 if(request.isAuthenticated()){
                     let userId = request.user.userId; // 디폴트는 로그인한 사람 데이터 조회
                     
+                    
                     if(request.user.role == ROLE.TRAINER){ // 강사인 경우만 회원 데이터 조회 가능
-                        // /trainer 로 접근 했고, querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
-                        if(request.originalUrl.startsWith('/trainer') && params.userId){ 
-                            userId = params.userId;
+                        // querystring 으로 던짐( 강사가 > 회원 데이터 조회할 때 )
+                        if(params.selectedUserId){ 
+                            userId = params.selectedUserId;
 
                             // 매칭이 성사된 사용자(승인) 데이터만 조회 할 수 있도록 제한
                             // 승인 코드 확인 할 것...
@@ -350,7 +351,8 @@ const schedulerControllers = [
 
                                         resolve({
                                             success:true,
-                                            message:"success"
+                                            message:"success",
+                                            dietId:dietId
                                         });
                                     }else{
                                         reject({
@@ -521,7 +523,13 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
                         d.diet_id as schedule_id,
                         'D' as status,
                         d.regist_date as start_time,
-                        d.regist_date + interval '1 hour' as end_time,
+                        (
+                            case 
+                                when d.regist_date + interval '1 hour' >= d.regist_date::date + interval '1 day' then
+                                (d.regist_date::date + interval '1 day') - interval '1 second'
+                                else d.regist_date + interval '1 hour'
+                            end
+                        ),
                         1 as excersize_cnt,
                         '' as excersise_division,
                         d.total_calorie,
