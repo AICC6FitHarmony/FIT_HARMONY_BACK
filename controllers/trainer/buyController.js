@@ -23,10 +23,10 @@ const buyControllers = [
                     }
                     const userId = request.user.userId; // 디폴트는 로그인한 사람 데이터 조회
 
-
+                    
                     // 실 소스
                     let query = `
-                        select u.user_id, u.user_name
+                        select u.user_id, u.user_name, u.nick_name
                         from "USER" u
                         join (
                             select b.user_id 
@@ -49,7 +49,7 @@ const buyControllers = [
 
                     // 테스트
                     // const result = await sendQuery(`
-                    //     select user_id, user_name 
+                    //     select user_id, user_name, nick_name
                     //     from "USER" u
                     //     where role <> 'TRAINER'
                     //     and user_id <> ${userId}
