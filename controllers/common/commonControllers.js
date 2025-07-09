@@ -219,10 +219,6 @@ const commonControllers = [
         type : 'get',
         callback : async ({request, params, response}) => {
            try {
-                if(!request.isAuthenticated()){ // 비인증 접근 > 프론트로 비인증 여부 전달
-                    return null
-                }
-
                 const fileInfo = await sendQuery("select * from file where file_id = $1", [ Number(params.fileId) ]);
                 const filePath =  path.resolve(process.cwd(), 'public', fileInfo[0].fileName);
                 // 파일 존재 여부 확인 후 전송
