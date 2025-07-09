@@ -1,6 +1,22 @@
 const { sendQuery } = require("../../config/database");
 const { uploadFileImage } = require("../common/fileControllers");
 
+const userNicknameExist = async (req, res) =>{
+  const {nick_name} = req.query;
+  const query = `select * from "USER" where nick_name = $1`;
+  const values = [nick_name];
+  try {
+    const nickNames = await sendQuery(query,values);
+    if(nickNames.length > 0)
+      res.json({isExist:true, success:true});
+    else
+      res.json({isExist:false, success:true});
+  } catch (error) {
+    console.log(error);
+    res.json({success:false})
+  }
+}
+
 const userRegister = async (req, profile, done)=>{
   const { id,displayName, emails, photos } = profile;
   const formData = req?.session?.oauthFormData;
@@ -52,4 +68,4 @@ const userRegister = async (req, profile, done)=>{
 }
 
 
-module.exports = {userRegister};
+module.exports = {userRegister,userNicknameExist};
