@@ -52,7 +52,7 @@ const getPermissions = async(req, res)=>{
 }
 
 const getPermission = async(req, res)=>{
-  const {} = req.params;
+  // const {} = req.params;
   const {role, permission, boardId} = req.query;
   console.log(req.query)
   const query = `select 1 from post_category_permission 
