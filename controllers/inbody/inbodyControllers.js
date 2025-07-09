@@ -373,9 +373,11 @@ const requestInbodyOcr = async (req, res) => {
         const pythonEnvPath = 'python';
         const pyScriptPath = path.join(__dirname, 'inbodyOcrModel.py');
         const aiRequestDiv = "inbody_ocr";
+        const model = process.env.GPT_4_o; // 모델명 추가
+       
 
         const ocrResult = await new Promise((resolve, reject) => {
-            const child = spawn(pythonEnvPath, [pyScriptPath, aiRequestDiv, fileId], {
+            const child = spawn(pythonEnvPath, [pyScriptPath, aiRequestDiv, fileId, model], {
                 env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
             });
 
@@ -411,7 +413,7 @@ const requestInbodyOcr = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'OCR 분석이 완료되었습니다.',
-            data: ocrResult
+            data: ocrResult.analyzed_data
         });
 
     } catch (error) {

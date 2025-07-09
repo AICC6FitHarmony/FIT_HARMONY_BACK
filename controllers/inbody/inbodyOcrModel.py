@@ -1,7 +1,6 @@
 import sys
 import os
 import json
-from datetime import datetime, timedelta
 from paddleocr import PaddleOCR
 import psycopg2
 from dotenv import load_dotenv
@@ -13,7 +12,6 @@ import io
 import cv2
 import numpy as np
 import openai
-
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -32,9 +30,11 @@ DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASS")
+openai.api_key = os.getenv("OPEN_AI_API_KEY")
 
 div = sys.argv[1]
 file_id = sys.argv[2]
+model = sys.argv[3]
 
 # ---------------- DB 조회 ----------------
 class DBAgent:
@@ -128,8 +128,10 @@ def analyze_inbody_image(image_input) -> dict:
                     bbox = rec_boxes[i] if i < len(rec_boxes) else []
                     
                     if len(bbox) >= 4:
+                        if text == "QR" or text == "QR코드":
+                            break
                         x_min, y_min, x_max, y_max = bbox[0], bbox[1], bbox[2], bbox[3]
-                        input_data = {"text": text, "x_min": x_min, "y_min": y_min, "x_max": x_max, "y_max": y_max}
+                        input_data = {"text": text, "x_min": int(x_min), "y_min": int(y_min), "x_max": int(x_max), "y_max": int(y_max)}
                         text_bbox.append(input_data)
                     
         print(f"text_bbox: {text_bbox}", file=sys.stderr)
@@ -139,9 +141,101 @@ def analyze_inbody_image(image_input) -> dict:
     except Exception as e:
         error_except(f"OCR 분석 오류: {e}")
 
+# ---------------- GPT 인바디 텍스트 분석 ----------------
+def analyze_inbody_text(text_bbox: list) -> dict:
+
+    print("analyze_inbody_text 시작", file=sys.stderr)
+    response = openai.chat.completions.create(
+        model=model,
+        temperature=0.2,  # 감정온도 : 가능한 낮춰서 좀도 결정론적으로 응답하도록 처리
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "당신은 인바디 측정 결과 분석 전문가입니다. 주어진 OCR 텍스트 데이터를 분석하여 인바디 측정 결과를 JSON 형식으로 반환하세요. 내용은 한국어로 작성해주세요.\n"
+                    "텍스트에서 다음 정보들을 추출해주세요:\n"
+                    "- 체중 (kg)\n"
+                    "- 체수분 (L)\n"
+                    "- 인바디점수\n"
+                    "- 단백질 (kg)\n"
+                    "- 무기질 (kg)\n"
+                    "- 체지방 (kg)\n"
+                    "- 체지방률 (%)\n"
+                    "- BMI\n"
+                    "- 골격근량 (kg)\n"
+                    "- 몸통근육량 (kg)\n"
+                    "- 왼팔근육량 (kg)\n"
+                    "- 오른팔근육량 (kg)\n"
+                    "- 왼다리근육량 (kg)\n"
+                    "- 오른다리근육량 (kg)\n"
+                    "- 몸통체지방 (kg)\n"
+                    "- 왼팔체지방 (kg)\n"
+                    "- 오른팔체지방 (kg)\n"
+                    "- 왼다리체지방 (kg)\n"
+                    "- 오른다리체지방 (kg)\n"
+                    "결과는 반드시 다음 형식의 JSON String 형태로 제공하세요: "
+                    "{\"weight\": 숫자, \"bodyWater\": 숫자, \"inbodyScore\": 숫자, \"protein\": 숫자, \"mineral\": 숫자, "
+                    "\"bodyFatMass\": 숫자, \"bodyFatPercent\": 숫자, \"bmi\": 숫자, \"skeletalMuscleMass\": 숫자, "
+                    "\"trunkMuscleMass\": 숫자, \"leftArmMuscleMass\": 숫자, \"rightArmMuscleMass\": 숫자, "
+                    "\"leftLegMuscleMass\": 숫자, \"rightLegMuscleMass\": 숫자, \"trunkFatMass\": 숫자, "
+                    "\"leftArmFatMass\": 숫자, \"rightArmFatMass\": 숫자, \"leftLegFatMass\": 숫자, "
+                    "\"rightLegFatMass\": 숫자} "
+                    "값이 없는 경우 null로 표시해주세요. JSON String 형태 외 문자열은 아무것도 작성하지마세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"OCR로 추출된 텍스트와 좌표(x_min, y_min, x_max, y_max) 데이터: {json.dumps(text_bbox, ensure_ascii=False)}",
+            },
+        ],
+        max_tokens=1000,
+    )
+    
+    cleaned = re.sub(r'```(?:json)?\s*([\s\S]*?)\s*```', r'\1', response.choices[0].message.content)
+    result = cleaned.replace('```', '').replace('json', '').strip()
+    
+    logging.info("================ analyze_inbody_text ==================")
+    logging.info(result)
+
+    # JSON 파싱 시도
+    try:
+        parsed_result = json.loads(result)
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON 파싱 실패: {e}")
+        return {}  # 또는 {"error": "JSON parse failed"}
+
+    # 필드 유효성 검증 및 정제
+    expected_keys = {
+        "weight", "bodyWater", "inbodyScore", "protein", "mineral",
+        "bodyFatMass", "bodyFatPercent", "bmi", "skeletalMuscleMass",
+        "trunkMuscleMass", "leftArmMuscleMass", "rightArmMuscleMass",
+        "leftLegMuscleMass", "rightLegMuscleMass", "trunkFatMass",
+        "leftArmFatMass", "rightArmFatMass", "leftLegFatMass", "rightLegFatMass"
+    }
+    cleaned_result = {k: parsed_result.get(k, None) for k in expected_keys}
+
+    return cleaned_result
+
+
+# ---------------- GPT 호출 함수 ----------------
+def gpt_call(role_name, messages):
+    logging.info(f"Calling GPT ({role_name})")
+    try:
+        response = openai.chat.completions.create(
+            model=model,
+            temperature=0.2,
+            messages=messages,
+            max_tokens=2048
+        )
+        content = response.choices[0].message.content.strip()
+        logging.info(f"GPT 응답 ({role_name}): {content}")
+        return content
+    except Exception as e:
+        error_except(f"GPT 호출 오류 ({role_name}): {e}")
+
 # ---------------- 실행 흐름 ----------------
 def run():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         return error_except("파라미터가 부족합니다.")
 
     if div == "inbody_ocr":
@@ -169,12 +263,15 @@ def process_inbody_ocr():
         deskewed_image = deskew_image(image_path)
         
         # OCR 분석 실행 (PIL Image 객체 직접 전달)
-        inbody_data = analyze_inbody_image(deskewed_image)
-        
+        text_bbox = analyze_inbody_image(deskewed_image)
+
+        # GPT 텍스트 분석 실행
+        analyzed_text_data = analyze_inbody_text(text_bbox)
+
+
         print("=============== inbody_ocr 결과 ==============", file=sys.stderr)
-        print(inbody_data, file=sys.stderr)
         
-        print(json.dumps({"success": "true", "content": inbody_data}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": "true", "content": {"analyzed_data": analyzed_text_data}}, ensure_ascii=False), flush=True)
         
     except Exception as e:
         error_except(f"인바디 OCR 처리 오류: {e}")
