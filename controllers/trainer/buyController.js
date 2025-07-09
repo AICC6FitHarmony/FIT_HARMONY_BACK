@@ -26,7 +26,10 @@ const buyControllers = [
                     
                     // 실 소스
                     let query = `
-                        select u.user_id, u.user_name, u.nick_name
+                        select 
+                            u.user_id, 
+                            u.user_name, 
+                            u.nick_name
                         from "USER" u
                         join (
                             select b.user_id 
