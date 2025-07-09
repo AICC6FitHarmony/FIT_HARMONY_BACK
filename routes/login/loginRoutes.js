@@ -1,9 +1,12 @@
 const express = require('express');
 const { getGyms, createGym } = require('../../controllers/login/gymControllers');
+const { userNicknameExist } = require('../../controllers/login/loginControllers');
 const router = express.Router();
 
 // 미들웨어 - 인증 확인 (필요시 사용)
 // const { authenticateToken } = require('../../middleware/auth');
+
+router.get('/exist-nick', userNicknameExist);
 
 router.get('/check-auth', (req, res) => {
   if (req.isAuthenticated()) {
