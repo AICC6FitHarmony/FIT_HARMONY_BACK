@@ -68,8 +68,6 @@ const introControllers = [
                 data.communityHot = await sendQuery(introCommunityHotQuery)
                 data.trainer = await sendQuery(introTrainerQuery)
 
-                console.log("introData" ,data);
-
                     return { 
                         message: 'success',
                         success: true,
