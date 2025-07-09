@@ -1,5 +1,5 @@
 const express = require('express');
-const { getGyms, createGym } = require('../../controllers/login/gymControllers');
+const { getGyms, createGym, deleteGym } = require('../../controllers/login/gymControllers');
 const { userNicknameExist } = require('../../controllers/login/loginControllers');
 const router = express.Router();
 
@@ -27,5 +27,5 @@ router.post('/logout', (req, res, next) => {
 
 router.get('/gym',getGyms);
 router.post('/gym',createGym);
-
+router.delete('/gym/:gymId',deleteGym);
 module.exports = router; 
