@@ -98,6 +98,7 @@ const getTrainerProduct = async (req, res) => {
 
       select
       u.user_id,
+      p.product_id,
       p.name,
       p.description, p.price,
       p.type,
