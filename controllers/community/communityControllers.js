@@ -392,10 +392,11 @@ const getCommentPageCount = async (req,res)=>{
   try {
     const result = await sendQuery(query, params);
     const pageCount =  Math.ceil(result[0].totalCount/COMMENT_PAGE_NUM);
-    res.json({pageCount,success:true})
+    res?.json({pageCount,success:true})
     return pageCount;
   } catch (error) {
-    res.json({success:false})
+    console.log(error);
+    res?.json({success:false})
     return 1;
   }
 }
