@@ -198,7 +198,7 @@ const mypageControllers = [
                     const isDuplicate = nicknameCheck && nicknameCheck.length > 0;
 
                     return { 
-                        message: isDuplicate ? '이미 사용 중인 닉네임입니다.' : '사용 가능한 닉네임입니다.',
+                        message: 'success',
                         success: true,
                         isDuplicate: isDuplicate
                     }
@@ -210,6 +210,49 @@ const mypageControllers = [
                 }
             } catch (error) {
                 console.log(`/mypage/check-nickname error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
+    },
+
+    // Gym 검색
+    {
+        url : '/search-gym',
+        type : 'post',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const { search } = params;
+                    
+                    if(!search || search.trim() === ''){
+                        return {
+                            message: 'noParam',
+                            success: false
+                        }
+                    }
+
+                    // Gym 검색 (LIKE 검색)
+                    const gymSearch = await sendQuery(
+                        'SELECT * FROM gym WHERE gym ILIKE $1 ORDER BY gym LIMIT 10',
+                        [`%${search.trim()}%`]
+                    );
+
+                    return { 
+                        message: 'success',
+                        success: true,
+                        gyms: gymSearch || []
+                    }
+                }else{
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/search-gym error : ${error.message}`);
                 return {
                     message: 'error',
                     success: false
