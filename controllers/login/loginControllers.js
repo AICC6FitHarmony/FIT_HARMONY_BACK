@@ -1,6 +1,22 @@
 const { sendQuery } = require("../../config/database");
 const { uploadFileImage } = require("../common/fileControllers");
 
+const userNicknameExist = async (req, res) =>{
+  const {nick_name} = req.query;
+  const query = `select * from "USER" where nick_name = $1`;
+  const values = [nick_name];
+  try {
+    const nickNames = await sendQuery(query,values);
+    if(nickNames.length > 0)
+      res.json({isExist:true, success:true});
+    else
+      res.json({isExist:false, success:true});
+  } catch (error) {
+    console.log(error);
+    res.json({success:false})
+  }
+}
+
 const userRegister = async (req, profile, done)=>{
   const { id,displayName, emails, photos } = profile;
   const formData = req?.session?.oauthFormData;
@@ -8,8 +24,8 @@ const userRegister = async (req, profile, done)=>{
   const profile_image = req.session.oauthProfileImage;
   const query = `
   INSERT INTO "USER" (
-  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL,FILE_ID) VALUES (
-  $1, $2, $3, $4, $5, $6,$7,$8,$9,$10
+  USER_NAME,NICK_NAME,EMAIL,AGE,HEIGHT,WEIGHT,GENDER,ROLE,FIT_GOAL,FILE_ID,GYM_ID,FIT_HISTORY) VALUES (
+  $1, $2, $3, $4, $5, $6,$7,$8,$9,$10,$11,$12
   ) RETURNING USER_ID, USER_NAME,NICK_NAME,EMAIL;
   `;
 
@@ -27,7 +43,9 @@ const userRegister = async (req, profile, done)=>{
       formData.gender,
       formData.role,
       formData.goal,
-      1 //기본 프로필 이미지 id 
+      undefined, //기본 프로필 이미지 id
+      formData.gymId,
+      formData.history,
   ];
   console.log(values)
   try {
@@ -49,13 +67,5 @@ const userRegister = async (req, profile, done)=>{
   }
 }
 
-const getGyms = async (req,res)=>{
 
-}
-
-const createGym = async (req,res)=>{
-
-}
-
-
-module.exports = {userRegister};
+module.exports = {userRegister,userNicknameExist};

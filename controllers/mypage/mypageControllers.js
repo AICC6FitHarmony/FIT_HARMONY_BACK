@@ -3,7 +3,6 @@
 const router = require('express').Router(); // express의 Router 객체 생성(모듈 로드)
 const { initRoute } = require('../../routes/common_routes'); // 라우트 작성
 const { sendQuery } = require('../../config/database');
-const ROLE = require("../../config/ROLE"); // ROLE 구분 정보 객체
 
 //  2) 통신 객체 배열 선언
 const mypageControllers = [
@@ -65,7 +64,6 @@ const mypageControllers = [
 
                     const {
                         userName,
-                        email,
                         nickName,
                         phoneNumber,
                         height,
@@ -77,7 +75,7 @@ const mypageControllers = [
                         GYM,
                         fileId
                     } = params;
-                    console.log("===============================================================params", params)
+                    
                     // 빈 값들을 null로 초기화
                     const cleanHeight = height != '' ? height : null;
                     const cleanWeight = weight != '' ? weight : null;
@@ -89,22 +87,9 @@ const mypageControllers = [
                     const cleanFileId = fileId != '' ? fileId : 1;
                 
                     // 필수 필드 검증
-                    if(!userName || !email || !nickName){
+                    if(!userName || !nickName){
                         return {
                             message: 'noParam',
-                            success: false
-                        }
-                    }
-
-                    // 이메일 중복 체크 (본인 이메일 제외)
-                    const emailCheck = await sendQuery(
-                        'SELECT user_id FROM "USER" WHERE email = $1 AND user_id != $2',
-                        [email, userId]
-                    );
-                    
-                    if(emailCheck && emailCheck.length > 0){
-                        return {
-                            message: 'duplicateEmail',
                             success: false
                         }
                     }
@@ -132,23 +117,21 @@ const mypageControllers = [
                     const updateQuery = `
                         UPDATE "USER" SET
                             user_name = $1,
-                            email = $2,
-                            nick_name = $3,
-                            phone_number = $4,
-                            height = CAST($5 AS INTEGER),
-                            weight = CAST($6 AS INTEGER),
-                            age = CAST($7 AS INTEGER),
-                            fit_history = $8,
-                            fit_goal = $9,
-                            introduction = $10,
-                            gym_id = CAST($11 AS INTEGER),
-                            file_id = CAST($12 AS INTEGER)
-                        WHERE user_id = $13
+                            nick_name = $2,
+                            phone_number = $3,
+                            height = CAST($4 AS NUMERIC),
+                            weight = CAST($5 AS NUMERIC),
+                            age = CAST($6 AS INTEGER),
+                            fit_history = $7,
+                            fit_goal = $8,
+                            introduction = $9,
+                            gym_id = CAST($10 AS INTEGER),
+                            file_id = CAST($11 AS INTEGER)
+                        WHERE user_id = $12
                     `;
 
                     await sendQuery(updateQuery, [
                         userName,
-                        email,
                         nickName,
                         phoneNumber,
                         cleanHeight,
@@ -181,62 +164,7 @@ const mypageControllers = [
             }
         }
     },
-
-    // 이메일 중복 체크
-    {
-        url : '/check-email',
-        type : 'post',
-        callback : async ({request, params}) => {
-            try {
-                if(request.isAuthenticated()){
-                    const { email } = params;
-                    
-                    if(!email){
-                        return {
-                            message: 'noParam',
-                            success: false
-                        }
-                    }
-
-                    // 이메일 형식 검증
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if(!emailRegex.test(email)){
-                        return {
-                            message: 'invalidEmail',
-                            success: false
-                        }
-                    }
-
-                    // 이메일 중복 체크
-                    const emailCheck = await sendQuery(
-                        'SELECT user_id FROM "USER" WHERE email = $1',
-                        [email]
-                    );
-                    
-                    const isDuplicate = emailCheck && emailCheck.length > 0;
-
-                    return { 
-                        message: isDuplicate ? '이미 사용 중인 이메일입니다.' : '사용 가능한 이메일입니다.',
-                        success: true,
-                        isDuplicate: isDuplicate
-                    }
-                }else{
-                    return {
-                        message: 'noAuth',
-                        success: false
-                    }
-                }
-            } catch (error) {
-                console.log(`/mypage/check-email error : ${error.message}`);
-                return {
-                    message: 'error',
-                    success: false
-                }
-            }
-        }
-    },
-
-    // 닉네임 중복 체크
+     // 닉네임 중복 체크
     {
         url : '/check-nickname',
         type : 'post',
@@ -270,7 +198,7 @@ const mypageControllers = [
                     const isDuplicate = nicknameCheck && nicknameCheck.length > 0;
 
                     return { 
-                        message: isDuplicate ? '이미 사용 중인 닉네임입니다.' : '사용 가능한 닉네임입니다.',
+                        message: 'success',
                         success: true,
                         isDuplicate: isDuplicate
                     }
@@ -282,6 +210,49 @@ const mypageControllers = [
                 }
             } catch (error) {
                 console.log(`/mypage/check-nickname error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
+    },
+
+    // Gym 검색
+    {
+        url : '/search-gym',
+        type : 'post',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const { search } = params;
+                    
+                    if(!search || search.trim() === ''){
+                        return {
+                            message: 'noParam',
+                            success: false
+                        }
+                    }
+
+                    // Gym 검색 (LIKE 검색)
+                    const gymSearch = await sendQuery(
+                        'SELECT * FROM gym WHERE gym ILIKE $1 ORDER BY gym LIMIT 10',
+                        [`%${search.trim()}%`]
+                    );
+
+                    return { 
+                        message: 'success',
+                        success: true,
+                        gyms: gymSearch || []
+                    }
+                }else{
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/search-gym error : ${error.message}`);
                 return {
                     message: 'error',
                     success: false
@@ -374,6 +345,67 @@ const mypageControllers = [
                 }
             }
         }
+    },
+
+    // 사용자 계정 비활성화
+    {
+        url : '/active/:userId',
+        type : 'put',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const userId = params.userId;
+                    const type = params.type;
+                    const reason = params.reason;
+
+                    if (request.user.userId != userId) {
+                        return {
+                            message: 'noAuth',
+                            success: false
+                        }
+                    }
+
+                    if (type == "INACTIVE") { 
+                        const updateQuery = `
+                        UPDATE "USER" SET
+                            status = $1
+                        WHERE user_id = $2
+                    `;
+                        await sendQuery(updateQuery, [type, userId]);
+                        return {
+                            message: 'success',
+                            success: true,
+                        }
+                    }
+
+                    if (type == "DELETED") { 
+                        const updateQuery = `
+                        UPDATE "USER" SET
+                            status = $1,
+                            introduction = $2
+                        WHERE user_id = $3
+                    `;
+                        await sendQuery(updateQuery, [type, reason, userId]);
+                        return {
+                            message: 'success',
+                            success: true,
+                        }
+                    }
+
+                }else{
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/active/:userId error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
     }
 ];
 
@@ -384,7 +416,6 @@ const selectUserData = async (userId) => {
             user_id,
             user_name,
             file_id,
-            email,
             nick_name,
             phone_number,
             age,
@@ -401,6 +432,7 @@ const selectUserData = async (userId) => {
 
     return await sendQuery(userQuery, [userId]);
 }
+
 
 //  3) 통신 객체 배열 Route 등록
 mypageControllers.forEach(route => {

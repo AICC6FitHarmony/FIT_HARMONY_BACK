@@ -1,56 +1,263 @@
 const { sendQuery } = require('../../config/database'); 
+const { getPermission } = require('./boardControllers');
 
-const getAllPosts = async (req,res)=>{
+const PAGE_NUM = 10;
+
+
+const getPageCount = async (req,res)=>{
+  const { boardId } = req.params;
+  const { keyword, key_type } = req.query;
+  
+  const allowedKeyTypes = ["title", "nick_name", "content"];
+  const keyTypeSafe = allowedKeyTypes.includes(key_type) ? key_type : null;
+  
+  const params = [];
+  let paramIdx = 1;
+  
+  const whereClauses = ["is_deleted = FALSE"];
+  
+  if (boardId && boardId !== "undefined") {
+    whereClauses.push(`category_id = $${paramIdx++}`);
+    params.push(parseInt(boardId, 10));
+  }
+  
+  if (
+    keyword &&
+    keyword !== "null" &&
+    keyword !== "undefined" &&
+    keyword.trim() !== "" &&
+    keyTypeSafe
+  ) {
+    const keywordParam = `%${keyword}%`;
+  
+    if (keyTypeSafe === "content") {
+    const contentClause = `
+      EXISTS (
+        SELECT 1
+        FROM jsonb_path_query(content::jsonb, '$.**.text') AS t(text_value)
+        WHERE trim(t.text_value::text, '"') ILIKE $${paramIdx++}
+      )
+    `;
+    whereClauses.push(contentClause);
+    params.push(`%${keyword}%`);
+    } else {
+      whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+      params.push(keywordParam);
+    }
+  }
+  
+  const query = `
+    SELECT COUNT(*) AS total_count
+    FROM post
+    WHERE ${whereClauses.join(' AND ')}
+  `;
+  
+  // 로깅
+  // console.log("COUNT QUERY", query);
+  // console.log("COUNT PARAMS", params);
+  
+  
   try {
-    const posts = await sendQuery(
-      `
-      select post_id, user_id, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
-      from post
-      where is_deleted = false
-      `
-    );
-    res.json(posts);
+    const result = await sendQuery(query, params);
+    // const result = await sendQuery(query);
+    const pageCount =  Math.ceil(result[0].totalCount/PAGE_NUM);
+    // console.log(result)
+    // res.json({pageCount, success:true});
+    return pageCount;
   } catch (error) {
-    res.json({msg:error, success:false})
+    console.log(error);
+    // res.json({success:false});
+    return 1;
   }
 }
 
 const getPosts = async (req,res)=>{
-  const {board_id} = req.params;
-  if (!board_id){
-    try {
-      const posts = await sendQuery(
-        `
-        select post_id, user_id, nick_name, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
-        from post
-        left join (select nick_name,user_name, user_id as usr_id from "USER") as usr
-        on usr.usr_id = post.user_id
-        where is_deleted = FALSE
-        order by post_id desc
-        `
-      );
-      console.log("all",posts);
-      res.json(posts);
-    } catch (error) {
-      res.json({msg:error, success:false})
+  const {boardId} = req.params;
+  const {page, keyword, key_type} = req.query;
+  try {
+    let page_num = 0;
+    if (page && !isNaN(parseInt(page, 10))) {
+      page_num = (parseInt(page, 10) - 1) * PAGE_NUM;
     }
-    return;
+    if (page_num < 0) page_num = 0;
+
+    const allowedKeyTypes = ["title", "nick_name", "content"];
+    const keyTypeSafe = allowedKeyTypes.includes(key_type) ? key_type : null;
+    
+    const params = [];
+    let paramIdx = 1;
+    
+    const whereClauses = ["is_deleted = FALSE"];
+    console.log("BoardID : ", boardId)
+    if (boardId && boardId !== "undefined" && boardId !== "NaN" && boardId !== NaN) {
+      whereClauses.push(`category_id = $${paramIdx++}`);
+      params.push(parseInt(boardId, 10));
+    }
+    
+    // keyword가 값이 있을 때만 조건 추가
+    if (
+      keyword &&
+      keyword !== NaN &&
+      keyword !== "NaN" &&
+      keyword !== "null" &&
+      keyword !== "undefined" &&
+      keyword.trim() !== "" &&
+      keyTypeSafe
+    ) {
+      const keywordParam = `%${keyword}%`;
+    
+      if (keyTypeSafe === "content") {
+      const contentClause = `
+          EXISTS (
+            SELECT 1
+            FROM jsonb_path_query(content::jsonb, '$.**.text') AS t(text_value)
+            WHERE trim(t.text_value::text, '"') ILIKE $${paramIdx++}
+          )
+        `;
+        whereClauses.push(contentClause);
+        params.push(`%${keyword}%`);
+      } else {
+        whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+        params.push(keywordParam);
+      }
+    }
+
+    const query = `
+        SELECT
+          post_id, user_id, nick_name, category_id, title, view_cnt, 
+          parent_post_id, path, depth, created_time, updated_time, content,
+          (
+            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id
+          ) AS comment_cnt
+        FROM post
+        LEFT JOIN (
+          SELECT nick_name, user_name, user_id AS usr_id FROM "USER"
+        ) AS usr
+        ON usr.usr_id = post.user_id
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY post_id DESC
+        LIMIT $${paramIdx}
+        OFFSET $${paramIdx + 1}
+      `;
+
+    // LIMIT, OFFSET 고정 위치
+
+    params.push(Number(PAGE_NUM));
+    params.push(Number(page_num));
+    // console.log("QUERY", query);
+    // console.log("PARAMS", params);
+    const posts = await sendQuery(query,params);
+    const pageCount = await getPageCount(req,res);
+    console.log("search Count : ",posts.length + " : " + pageCount);
+    res?.json({data:{posts,pageCount}, success:true});
+  } catch (error) {
+    console.log(error);
+    res?.json({success:false})
   }
+  return;
+}
+
+const getFilteredPosts = async (req, res)=>{
+  const {boardId} = req.params;
+  const {page, keyword, key_type} = req.query;
+  let role = 'OTHERS'
+  if (req.isAuthenticated())
+    role = req.user.role;
 
   try {
-    const posts = await sendQuery(
-      `
-      select post_id, user_id, category_id, title, view_cnt, parent_post_id, path, depth, created_time, updated_time 
-      from post
-      where is_deleted = false and category_id = $1
-      order by post_id desc
-      `,[board_id]
-    );
-    console.log(posts);
-    res.json(posts);
+    let page_num = 0;
+    if (page && !isNaN(parseInt(page, 10))) {
+      page_num = (parseInt(page, 10) - 1) * PAGE_NUM;
+    }
+    if (page_num < 0) page_num = 0;
+
+    const allowedKeyTypes = ["title", "nick_name", "content"];
+    const keyTypeSafe = allowedKeyTypes.includes(key_type) ? key_type : null;
+    
+    const params = [];
+    let paramIdx = 1;
+    
+    const whereClauses = ["is_deleted = FALSE"];
+
+
+
+
+    console.log("BoardID : ", boardId)
+    if (boardId && boardId !== "undefined" && boardId !== "NaN" && boardId !== NaN) {
+      whereClauses.push(`category_id = $${paramIdx++}`);
+      params.push(parseInt(boardId, 10));
+    }
+    
+    whereClauses.push(`
+      post.category_id IN (
+        SELECT category_id
+        FROM post_category_permission
+        WHERE role = $${paramIdx++} AND permission = 'read'
+      )
+    `);
+    params.push(role);
+
+    // keyword가 값이 있을 때만 조건 추가
+    if (
+      keyword &&
+      keyword !== NaN &&
+      keyword !== "NaN" &&
+      keyword !== "null" &&
+      keyword !== "undefined" &&
+      keyword.trim() !== "" &&
+      keyTypeSafe
+    ) {
+      const keywordParam = `%${keyword}%`;
+    
+      if (keyTypeSafe === "content") {
+      const contentClause = `
+          EXISTS (
+            SELECT 1
+            FROM jsonb_path_query(content::jsonb, '$.**.text') AS t(text_value)
+            WHERE trim(t.text_value::text, '"') ILIKE $${paramIdx++}
+          )
+        `;
+        whereClauses.push(contentClause);
+        params.push(`%${keyword}%`);
+      } else {
+        whereClauses.push(`${keyTypeSafe} ILIKE $${paramIdx++}`);
+        params.push(keywordParam);
+      }
+    }
+
+    const query = `
+        SELECT
+          post_id, user_id, nick_name, category_id, title, view_cnt, 
+          parent_post_id, path, depth, created_time, updated_time, content,
+          (
+            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id
+          ) AS comment_cnt
+        FROM post
+        LEFT JOIN (
+          SELECT nick_name, user_name, user_id AS usr_id FROM "USER"
+        ) AS usr
+        ON usr.usr_id = post.user_id
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY post_id DESC
+        LIMIT $${paramIdx}
+        OFFSET $${paramIdx + 1}
+      `;
+
+    // LIMIT, OFFSET 고정 위치
+
+    params.push(Number(PAGE_NUM));
+    params.push(Number(page_num));
+    // console.log("QUERY", query);
+    // console.log("PARAMS", params);
+    const posts = await sendQuery(query,params);
+    const pageCount = await getPageCount(req,res);
+    console.log("search Count : ",posts.length + " : " + pageCount);
+    res?.json({data:{posts,pageCount}, success:true});
   } catch (error) {
-    res.json({msg:error, success:false});
+    console.log(error);
+    res?.json({success:false})
   }
+  return;
 }
 
 const getPost = async (req,res)=>{
@@ -71,17 +278,16 @@ const getPost = async (req,res)=>{
     if ((!posts)||posts.length == 0){
       res.status(404).json({msg:"게시물을 찾을수 없습니다.", success:false})
       return;
-    }
-    const result = {
-      ...posts[0], success:true
-    }
-  
-    res.status(200).json(result);
+    }  
+    res.status(200).json({
+      data:posts[0],
+      success:true
+    });
   } catch (error) {
-    res.json({msg:error, success:false})
+    res.json({success:false})
   }
-  
 }
+
 
 const createPost = async (req,res)=>{
   if (req.isAuthenticated() == false){
@@ -95,6 +301,15 @@ const createPost = async (req,res)=>{
     const path = "/";
     const depth = 1;
     // console.log(content)
+    const permission = await getPermission({query:{
+      role:user.role, boardId: board_id, permission:'write'
+    }});
+    console.log("this Permission : ", permission);
+    if(permission == false){
+      res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+      return;
+    }
+
     posts = await sendQuery("insert into post(user_id, category_id, title, content, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7) returning post_id",
       [userId, board_id, title, content, path, depth,false]);
     // console.log(posts);
@@ -136,21 +351,33 @@ const updatePost = async (req,res)=>{
   if (req.isAuthenticated() == false){
     return res.json({msg:"회원이 아닙니다."});
   }
+  const {user} = req;
   const {userId:authId} = req.user;
   const form = req.body;
-  const {post_id, title, content} = form;
+  const {post_id, title, content,board_id} = form;
 
   const target = await sendQuery(`select user_id from post where post_id = $1`,[post_id]);
   if(target.length ===0)
     return res.json({msg:"찾을 수 없는 게시글 입니다.", success:false});
   const dbUser = target[0].userId;
+
+  const permission = await getPermission({query:{
+    role:user.role, boardId: board_id, permission:'write'
+  }});
+  console.log("this Permission : ", permission);
+  if(permission == false){
+    res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+    return;
+  }
+
+
   console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
     res.json({msg:"권한이 없습니다.", success:false});
     return;
   }
-  await sendQuery(`update post set title = $1, content = $2 where post_id = $3`,[title,content,post_id]);
+  await sendQuery(`update post set title = $1, content = $2, category_id = $4 where post_id = $3`,[title,content,post_id,board_id]);
   res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
@@ -173,9 +400,9 @@ const getComments = async (req, res)=>{
       order by path
       `,[postId]
     );
-    res.json(comments);
+    res.json({data:{comments}, success:true});
   } catch (error) {
-    res.json({msg:error, success:false});
+    res.json({success:false});
   }
 }
 
@@ -283,4 +510,4 @@ const updateComment = async (req, res)=>{
   res.json({msg:"수정이 완료되었습니다.", success:true});
 }
 
-module.exports = {getPosts,getPost,createPost,updatePost,deletePost, getComments, createComment, deleteComment, updateComment};
+module.exports = {getPosts,getPost,createPost,updatePost,deletePost, getComments, createComment, deleteComment, updateComment,getFilteredPosts};

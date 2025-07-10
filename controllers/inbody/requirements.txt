@@ -1,0 +1,11 @@
+torch
+torchvision
+torchaudio
+paddlepaddle
+paddleocr
+psycopg2-binary
+python-dotenv
+Pillow
+numpy
+opencv-python
+openai

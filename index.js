@@ -82,9 +82,10 @@ const authorizeRole = (roles) => {
 const adminAuthRole = [ROLE.ADMIN];
 const trainerAuthRole = [ROLE.TRAINER];
 const totalAuthUserRole = [ROLE.ADMIN, ROLE.TRAINER, ROLE.MEMBER];
-// 0. 공통 모든 접근은 선언 X
-// 0-1. 파일 업로드 관련 기능은 권한 조건 처리
-app.use('/common/file', authorizeRole(totalAuthUserRole));
+
+// // 0. 공통 모든 접근은 선언 X
+// // 0-1. 파일 업로드 관련 기능은 권한 조건 처리
+// app.use('/common/file', authorizeRole(totalAuthUserRole));
 
 // 1-1. /admin 접근 권한 부여(관리자 접근 권한)
 app.use('/admin', authorizeRole(adminAuthRole));
@@ -93,11 +94,14 @@ app.use('/trainer', authorizeRole(totalAuthUserRole));
 
 // 2. /schedule 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/schedule', authorizeRole(totalAuthUserRole));
-app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
 
 // 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/inbody', authorizeRole(totalAuthUserRole));
 app.use('/mypage', authorizeRole(totalAuthUserRole));
+
+// 4. /product 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
+app.use('/product', authorizeRole(totalAuthUserRole));
+
 
 // 정적 경로 적용. :
 // route로 인하여 선언된 URL PATH로만 접근이 가능하기 때문에
@@ -133,6 +137,17 @@ app.use('/trainer', require('./routes/trainer/trainerRoutes')); // trainer 라�
 // Community 관련 라우팅
 app.use('/community', require('./routes/community/communityRoutes'));
 
+// Intro 관련 라우팅 (루트 경로)
+app.use('/', require('./controllers/intro/introControllers'));
+
+// 8. buy 관련 라우팅
+app.use('/buy', require('./controllers/trainer/buyController')); // buy 라우터 + controllers 연결
+
+// 8. buy 관련 라우팅
+app.use('/product', require('./controllers/trainer/productController')); // product 라우터 + controllers 연결
+
+
+
 // 2. 구글 인증
 app.post(
   '/auth/google/register',
@@ -158,16 +173,12 @@ app.get(
   passport.authenticate('google', { failureRedirect: '/login-fail'}),
   (request, response) => {
     // 세션 저장 후 프론트에서 인증 확인 가능
-    response.redirect(`${process.env.FRONT_DOMAIN}/auth/google/result`); //  동작 테스트 확인 필요
+    response.redirect(`${process.env.FRONT_DOMAIN}/`); //  동작 테스트 확인 필요
   }
 );
 
 app.get('/login-fail', (req, res) => {
   res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`); //  동작 테스트 확인 필요
-});
-
-app.get('/', (request, response) => {
-  response.send('Hello World');
 });
 
 // 서버 시작
