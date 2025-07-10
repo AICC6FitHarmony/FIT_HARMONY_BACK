@@ -94,11 +94,14 @@ app.use('/trainer', authorizeRole(totalAuthUserRole));
 
 // 2. /schedule 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/schedule', authorizeRole(totalAuthUserRole));
-app.use('/trainer/schedule', authorizeRole(totalAuthUserRole));
 
 // 3. /inbody 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/inbody', authorizeRole(totalAuthUserRole));
 app.use('/mypage', authorizeRole(totalAuthUserRole));
+
+// 4. /product 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
+app.use('/product', authorizeRole(totalAuthUserRole));
+
 
 // 정적 경로 적용. :
 // route로 인하여 선언된 URL PATH로만 접근이 가능하기 때문에
@@ -139,6 +142,10 @@ app.use('/', require('./controllers/intro/introControllers'));
 
 // 8. buy 관련 라우팅
 app.use('/buy', require('./controllers/trainer/buyController')); // buy 라우터 + controllers 연결
+
+// 8. buy 관련 라우팅
+app.use('/product', require('./controllers/trainer/productController')); // product 라우터 + controllers 연결
+
 
 
 // 2. 구글 인증
