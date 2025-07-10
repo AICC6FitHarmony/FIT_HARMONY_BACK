@@ -1,6 +1,3 @@
-torch
-torchvision
-torchaudio
 paddlepaddle
 paddleocr
 psycopg2-binary
