@@ -13,6 +13,7 @@ const getTrainerList = async (req, res) => {
         u.user_id,
         u.user_name,
         u.gender,
+        u.file_id,
         g.gym,
         g.gym_address,
         MIN(p.price) AS min_price,
@@ -31,7 +32,7 @@ const getTrainerList = async (req, res) => {
 
       WHERE u.role = 'TRAINER' and u.status = 'ACTIVE'
 
-      GROUP BY u.user_id, u.user_name, u.gender, g.gym, g.gym_address
+      GROUP BY u.user_id, u.user_name, u.gender, g.gym, g.gym_address, u.file_id
       `;
 
     const trainerresult = await sendQuery(trainerquery);
@@ -57,24 +58,26 @@ const getTrainerDetail = async (req, res) => {
   const userId = req.params.id;
 
   const trainerDetailQuery = `
-    SELECT
+        SELECT
       u.user_id,
       u.user_name,
-      u.fit_history,
-      u.introduction,
+      u.fit_history,  
       u.file_id,
       g.gym,
       g.gym_address,
+	    t.title,
+	    t.content,
+	  
       ROUND(AVG(r.rating), 2) AS rating,
       COUNT(r.review_id) AS review_count
     FROM "USER" u
     LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
     LEFT OUTER JOIN products p ON u.user_id = p.user_id
     LEFT OUTER JOIN review r ON p.product_id = r.product_id
+    LEFT OUTER JOIN post t ON t.user_id = u.user_id AND t.category_id = 4
     WHERE u.user_id = $1
-    GROUP BY u.user_id, u.user_name, u.fit_history, u.introduction, u.file_id, g.gym, g.gym_address
-  `;
 
+    GROUP BY u.user_id, u.user_name, u.fit_history, u.file_id, g.gym, g.gym_address, t.title, t.content`;
   try {
     const result = await sendQuery(trainerDetailQuery, [userId]); //★★★★★★
     res.status(200).json({
