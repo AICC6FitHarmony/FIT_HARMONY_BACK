@@ -13,7 +13,8 @@ const getTrainerList = async (req, res) => {
         u.user_id,
         u.user_name,
         u.gender,
-        u.file_id,
+        (case when u.file_id is null then 1 else u.file_id end) as file_id,
+         
         g.gym,
         g.gym_address,
         MIN(p.price) AS min_price,
