@@ -2,7 +2,7 @@ const { sendQuery } = require('../../config/database');
 const { getPermission } = require('./boardControllers');
 
 const PAGE_NUM = 10;
-
+const COMMENT_PAGE_NUM = 20;
 
 const getPageCount = async (req,res)=>{
   const { boardId } = req.params;
@@ -381,6 +381,25 @@ const updatePost = async (req,res)=>{
   res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
+const getCommentPageCount = async (req,res)=>{
+  const {postId} = req.params;
+  const query = `
+    SELECT COUNT(*) AS total_count
+    FROM comment
+    WHERE post_id = $1
+  `;
+  const params= [boardId];
+  try {
+    const result = await sendQuery(query, params);
+    const pageCount =  Math.ceil(result[0].totalCount/COMMENT_PAGE_NUM);
+    res.json({pageCount,success:true})
+    return pageCount;
+  } catch (error) {
+    res.json({success:false})
+    return 1;
+  }
+}
+
 const getComments = async (req, res)=>{
   const {postId} = req.params;
   try {
@@ -510,4 +529,15 @@ const updateComment = async (req, res)=>{
   res.json({msg:"수정이 완료되었습니다.", success:true});
 }
 
-module.exports = {getPosts,getPost,createPost,updatePost,deletePost, getComments, createComment, deleteComment, updateComment,getFilteredPosts};
+module.exports = {
+  getPosts,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost,
+  getComments, 
+  createComment, 
+  deleteComment, 
+  updateComment,
+  getFilteredPosts
+};
