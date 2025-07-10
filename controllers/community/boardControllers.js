@@ -38,6 +38,28 @@ const getBoards = async(req, res)=>{
   }
 }
 
+const getFilteredBoards = async (req, res)=>{
+
+  const {role, permission} = req.query;
+
+  const query = `
+    SELECT b.category_id, b.category_name
+    FROM post_category b
+    JOIN post_category_permission p
+      ON p.category_id = b.category_id
+    WHERE p.role = $1
+      AND p.permission = $2
+    ORDER BY b.category_id
+  `;
+  const params = [role, permission];
+  try {
+    const result = await sendQuery(query,params);
+    res.json({boards:result, success:true});
+  } catch (error) {
+    res.json({success:false});
+  }
+}
+
 const createBoard = async(req, res)=>{
   if (req.isAuthenticated() == false){
     return res.json({msg:"회원이 아닙니다.", success:false});
@@ -58,6 +80,7 @@ const createBoard = async(req, res)=>{
   } 
 }
 
+//게시글 카테고리(게시판) 추가, 수정
 const updateBoard = async(req, res)=>{
   if (req.isAuthenticated() == false){
     return res.json({msg:"회원이 아닙니다.", success:false});
@@ -68,6 +91,18 @@ const updateBoard = async(req, res)=>{
   }
 
   const {categoryId, categoryName, isReply, isComment} = req.body;
+
+  if(categoryId === -1){// 카테고리 추가 로직
+    const query = `insert into post_category (category_name, is_comment, is_reply) values($1,$2,$3) returning *`;
+    const values = [categoryName, isComment, isReply];
+    try {
+      const result = await sendQuery(query, values);
+      res.json({board:result[0], success:true});
+    } catch (error) {
+      res.json({success:false});
+    }
+    return
+  }
   console.log({categoryId, categoryName, isReply, isComment})
   const query = `update post_category set category_name=$1, is_comment = $2, is_reply=$3 where category_id = $4 returning *`
   const values = [categoryName, isComment, isReply, categoryId];
@@ -172,4 +207,4 @@ const deletePermission = async(req, res)=>{
   }
 }
 
-module.exports = {getBoardInfo,getBoards, getPermission, getPermissions,createBoard, updatePermission, deletePermission,updateBoard};
+module.exports = {getBoardInfo,getBoards, getPermission, getPermissions,createBoard, updatePermission, deletePermission,updateBoard,getFilteredBoards};
