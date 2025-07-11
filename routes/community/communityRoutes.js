@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {getPosts, createPost, getPost, getAllPosts, deletePost, getComments, createComment, deleteComment, updateComment, updatePost, getFilteredPosts} = require('../../controllers/community/communityControllers');
+const {getPosts, createPost, getPost, getAllPosts, deletePost, getComments, createComment, deleteComment, updateComment, updatePost, getFilteredPosts, getFindComment} = require('../../controllers/community/communityControllers');
 const {getBoardInfo, getBoards, getPermission, updatePermission, getPermissions, createBoard, updateBoard, getFilteredBoards} = require('../../controllers/community/boardControllers');
 const upload = require('../login/uploads');
 
@@ -24,6 +24,7 @@ router.delete('/delete',deletePost);
 
 
 router.get('/comments/:postId', getComments);
+router.get('/comment/:postId/:commentId', getFindComment);
 router.post('/comment/create', createComment);
 router.delete('/comment',deleteComment);
 router.put('/comment', updateComment);
