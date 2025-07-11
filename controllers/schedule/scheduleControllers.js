@@ -27,7 +27,7 @@ const schedulerControllers = [
 
                             // 매칭이 성사된 사용자(승인) 데이터만 조회 할 수 있도록 제한
                             // 승인 코드 확인 할 것...
-                            const buyUser = await sendQuery("select user_id from buy where user_id = $1 and status = 'C'", [userId]);
+                            const buyUser = await sendQuery("select user_id from buy where user_id = $1 and status = 'A'", [userId]);
                             if(buyUser == undefined || buyUser.length < 1){
                                 return {
                                     message: 'noBuyer',
