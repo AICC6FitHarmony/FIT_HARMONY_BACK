@@ -230,7 +230,7 @@ const getFilteredPosts = async (req, res)=>{
           post_id, user_id, nick_name, category_id, title, view_cnt, 
           parent_post_id, path, depth, created_time, updated_time, content,
           (
-            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id
+            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id and c.is_deleted = FALSE
           ) AS comment_cnt
         FROM post
         LEFT JOIN (
