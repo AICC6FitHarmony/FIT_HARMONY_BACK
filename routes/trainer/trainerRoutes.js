@@ -11,9 +11,14 @@ const {
 
 const {
   createTrainerBuy,
+  getUserPurchasedProducts,
 } = require('../../controllers/trainer/createBuyController');
 
 router.get('/', getTrainerList);
+
+// 사용자가 구매한 상품 조회 - /:id 보다 먼저 배치
+router.get('/purchased-products', getUserPurchasedProducts);
+
 router.get('/:id/product', getTrainerProduct);
 // 더 구체적인 라우트를 먼저 배치
 router.get('/:id/reviews/all', getAllTrainerReviews); // 전체 리뷰
