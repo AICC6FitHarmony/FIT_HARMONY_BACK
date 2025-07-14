@@ -531,11 +531,11 @@ const createComment = async (req,res)=>{
     
     console.log(path,depth);
 
-    await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7)",
+    const result = await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7) returning post_id, comment_id",
       [userId, post_id, content,parent_comment_id, path, depth,false]);
     // console.log(posts);
 
-    res.json({msg:"작성이 완료되었습니다.", success: true});
+    res.json({data:result[0],msg:"작성이 완료되었습니다.", success: true});
   } catch (error) {
     console.log(error)
     res.json({msg:"작성이 실패", success: false});
