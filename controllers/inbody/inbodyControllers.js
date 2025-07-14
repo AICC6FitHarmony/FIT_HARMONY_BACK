@@ -343,7 +343,7 @@ const updateInbodyData = async (req, res) => {
     }
 };
 
-// 인바디 OCR 분석 요청
+// 인바디 분석 요청
 const requestInbodyOcr = async (req, res) => {
     try {
         const { fileId } = req.body;
@@ -397,7 +397,7 @@ const requestInbodyOcr = async (req, res) => {
                         if (parsedResult.success === 'true') {
                             resolve(parsedResult.content);
                         } else {
-                            reject(parsedResult.message || 'OCR 분석 실패');
+                            reject(parsedResult.message || '인바디 분석 실패');
                         }
                     } catch (err) {
                         reject('결과 파싱 실패');
@@ -408,15 +408,15 @@ const requestInbodyOcr = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'OCR 분석이 완료되었습니다.',
+            message: '인바디 분석이 완료되었습니다.',
             data: ocrResult.analyzed_data
         });
 
     } catch (error) {
-        console.error('인바디 OCR 분석 오류:', error);
+        console.error('인바디 분석 오류:', error);
         res.status(500).json({
             success: false,
-            message: 'OCR 분석 중 오류가 발생했습니다.'
+            message: '인바디 분석 중 오류가 발생했습니다.'
         });
     }
 };

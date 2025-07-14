@@ -431,10 +431,8 @@ const selectUserData = async (userId) => {
         LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
         WHERE user_id = $1
     `;
-    const test = await sendQuery(userQuery, [userId]);
-    console.log("userId", userId);
-    console.log("test", test);
-    return test;
+
+    return await sendQuery(userQuery, [userId]);
 }
 
 

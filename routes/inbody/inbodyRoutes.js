@@ -7,7 +7,7 @@ const { getUserInbodyDayData, getUserInbodyMonthData, insertInbodyData, updateIn
 
 /**
  * @route   POST /inbody/requestOcr
- * @desc    인바디 결과지 OCR 분석 요청
+ * @desc    인바디 결과지 분석 요청
  * @access  Public (또는 Private - 인증 필요시)
  */
 router.post('/requestOcr', requestInbodyOcr);

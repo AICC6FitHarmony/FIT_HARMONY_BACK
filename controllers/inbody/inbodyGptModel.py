@@ -247,7 +247,7 @@ def process_inbody_gpt():
         print(json.dumps({"success": "true", "content": {"analyzed_data": analyzed_data}}, ensure_ascii=False), file=sys.stdout, flush=True)
         
     except Exception as e:
-        error_except(f"인바디 OCR 처리 오류: {e}")
+        error_except(f"인바디 분석 오류: {e}")
 
 # ---------------- 에러 처리 ----------------
 def error_except(message):
