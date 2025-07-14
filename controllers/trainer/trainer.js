@@ -62,12 +62,11 @@ const getTrainerDetail = async (req, res) => {
         SELECT
       u.user_id,
       u.user_name,
+      u.introduction,
       u.fit_history,  
       u.file_id,
       g.gym,
       g.gym_address,
-	    t.title,
-	    t.content,
 	  
       ROUND(AVG(r.rating), 2) AS rating,
       COUNT(r.review_id) AS review_count
@@ -75,10 +74,9 @@ const getTrainerDetail = async (req, res) => {
     LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
     LEFT OUTER JOIN products p ON u.user_id = p.user_id
     LEFT OUTER JOIN review r ON p.product_id = r.product_id
-    LEFT OUTER JOIN post t ON t.user_id = u.user_id AND t.category_id = 4
     WHERE u.user_id = $1
 
-    GROUP BY u.user_id, u.user_name, u.fit_history, u.file_id, g.gym, g.gym_address, t.title, t.content`;
+    GROUP BY u.user_id, u.user_name, u.fit_history, u.file_id, g.gym, g.gym_address`;
   try {
     const result = await sendQuery(trainerDetailQuery, [userId]); //★★★★★★
     res.status(200).json({

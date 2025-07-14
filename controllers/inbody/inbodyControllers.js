@@ -365,9 +365,10 @@ const requestInbodyOcr = async (req, res) => {
 
         // Python 스크립트 실행
         const pythonEnvPath = path.join(process.env.PYTHON_ENV_PATH, 'python');
-        // const pythonEnvPath = 'python';
-        const pyScriptPath = path.join(__dirname, 'inbodyOcrModel.py');
-        const aiRequestDiv = "inbody_ocr";
+        const pyScriptPath = path.join(__dirname, 'inbodyGptModel.py');
+        const aiRequestDiv = "inbody_gpt";
+        // const pyScriptPath = path.join(__dirname, 'inbodyOcrModel.py');
+        // const aiRequestDiv = "inbody_ocr";
         const model = process.env.GPT_4_o; // 모델명 추가
        
 
@@ -391,6 +392,7 @@ const requestInbodyOcr = async (req, res) => {
                     reject(`종료 코드 ${code}`);
                 } else {
                     try {
+                        console.log("result", result);
                         const parsedResult = JSON.parse(result);
                         if (parsedResult.success === 'true') {
                             resolve(parsedResult.content);
