@@ -1,5 +1,49 @@
 const passport = require('passport'); // 인증 미들웨어
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 사용자 ID
+ *         email:
+ *           type: string
+ *           description: 사용자 이메일
+ *         role:
+ *           type: string
+ *           enum: [ADMIN, TRAINER, MEMBER]
+ *           description: 사용자 역할
+ *         name:
+ *           type: string
+ *           description: 사용자 이름
+ *     LoginRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *         - password
+ *       properties:
+ *         email:
+ *           type: string
+ *           description: 사용자 이메일
+ *         password:
+ *           type: string
+ *           description: 사용자 비밀번호
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           description: 응답 메시지
+ *         success:
+ *           type: boolean
+ *           description: 성공 여부
+ *         user:
+ *           $ref: '#/components/schemas/User'
+ */
 
 // * Controllers 기본 구조
 //  1) router 및 initRoute repuire
@@ -56,6 +100,64 @@ const authControllers = [
         }   
     },
 ];
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: 사용자 로그인
+ *     description: 이메일과 비밀번호를 사용하여 사용자 로그인을 수행합니다.
+ *     tags: [인증]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: 인증 실패
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "로그인에 실패했습니다."
+ */
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: 사용자 로그아웃
+ *     description: 현재 로그인된 사용자를 로그아웃시킵니다.
+ *     tags: [인증]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: 로그아웃 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Logout Success..."
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ */
+
 //  3) 통신 객체 배열 Route 등록
 authControllers.forEach(route => {
     initRoute(router, route);

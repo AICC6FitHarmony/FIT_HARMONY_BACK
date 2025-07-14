@@ -1,3 +1,78 @@
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Schedule:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 스케줄 ID
+ *         user_id:
+ *           type: integer
+ *           description: 사용자 ID
+ *         start_time:
+ *           type: string
+ *           format: date-time
+ *           description: 시작 시간
+ *         end_time:
+ *           type: string
+ *           format: date-time
+ *           description: 종료 시간
+ *         excersise_division:
+ *           type: string
+ *           description: 운동 구분
+ *         excersize_cnt:
+ *           type: integer
+ *           description: 운동 횟수
+ *         status:
+ *           type: string
+ *           enum: [A, P, C, D]
+ *           description: 스케줄 상태 A 활성 P 진행중 C 완료 D 삭제
+ *     CalendarScheduleRequest:
+ *       type: object
+ *       required:
+ *         - startTime
+ *         - endTime
+ *         - status
+ *       properties:
+ *         startTime:
+ *           type: string
+ *           format: date
+ *           description: 시작 날짜 (YYYY-MM-DD)
+ *         endTime:
+ *           type: string
+ *           format: date
+ *           description: 종료 날짜 (YYYY-MM-DD)
+ *         status:
+ *           type: string
+ *           description: 스케줄 상태 필터
+ *         selectedUserId:
+ *           type: integer
+ *           description: 선택된 사용자 ID (트레이너용)
+ *     AiScheduleRequest:
+ *       type: object
+ *       required:
+ *         - prompt
+ *       properties:
+ *         prompt:
+ *           type: string
+ *           description: AI에게 전달할 프롬프트
+ *     ScheduleUpdateRequest:
+ *       type: object
+ *       required:
+ *         - scheduleId
+ *         - status
+ *       properties:
+ *         scheduleId:
+ *           type: integer
+ *           description: 스케줄 ID
+ *         status:
+ *           type: string
+ *           enum: [A, P, C, D]
+ *           description: 변경할 스케줄 상태 A 활성 P 진행중 C 완료 D 삭제
+ */
+
 // * Controllers 기본 구조
 //  1) router 및 initRoute repuire
 const router = require('express').Router(); // express의 Router 객체 생성(모듈 로드)
@@ -610,6 +685,134 @@ const selectCalendaSchedule = async (wheres, whereParams, userId) => {
     }
 }
 
+
+/**
+ * @swagger
+ * /schedule/calendar/{startTime}/{endTime}:
+ *   get:
+ *     summary: 캘린더 스케줄 조회
+ *     description: 특정 기간의 스케줄을 캘린더 형태로 조회합니다.
+ *     tags: [스케줄]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: startTime
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 시작 날짜 (YYYY-MM-DD)
+ *       - in: path
+ *         name: endTime
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 종료 날짜 (YYYY-MM-DD)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: 스케줄 상태 필터
+ *       - in: query
+ *         name: selectedUserId
+ *         schema:
+ *           type: integer
+ *         description: 선택된 사용자 ID (트레이너용)
+ *     responses:
+ *       200:
+ *         description: 스케줄 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "success"
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Schedule'
+ *       401:
+ *         description: 인증 실패
+ *       403:
+ *         description: 권한 없음
+ */
+
+/**
+ * @swagger
+ * /schedule/requestAiSchdule:
+ *   post:
+ *     summary: AI 스케줄 생성 요청
+ *     description: AI를 사용하여 개인화된 스케줄을 생성합니다.
+ *     tags: [스케줄]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AiScheduleRequest'
+ *     responses:
+ *       200:
+ *         description: AI 스케줄 생성 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "success"
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: 잘못된 요청
+ *       401:
+ *         description: 인증 실패
+ */
+
+/**
+ * @swagger
+ * /schedule/updateSchedule:
+ *   patch:
+ *     summary: 스케줄 상태 업데이트
+ *     description: 스케줄의 상태를 변경합니다.
+ *     tags: [스케줄]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ScheduleUpdateRequest'
+ *     responses:
+ *       200:
+ *         description: 스케줄 업데이트 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "success"
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: 잘못된 요청
+ *       401:
+ *         description: 인증 실패
+ */
 
 //  3) 통신 객체 배열 Route 등록
 schedulerControllers.forEach(route => {
