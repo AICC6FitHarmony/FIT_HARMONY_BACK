@@ -72,7 +72,7 @@ const mypageControllers = [
                         fitHistory,
                         fitGoal,
                         introduction,
-                        GYM,
+                        gym,
                         fileId
                     } = params;
                     
@@ -83,7 +83,6 @@ const mypageControllers = [
                     const cleanFitHistory = fitHistory != '' ? fitHistory : null;
                     const cleanFitGoal = fitGoal != '' ? fitGoal : null;
                     const cleanIntroduction = introduction != '' ? introduction : null;
-                    const cleanGYM = GYM != '' ? GYM : null;
                     const cleanFileId = fileId != '' ? fileId : 1;
                 
                     // 필수 필드 검증
@@ -125,7 +124,7 @@ const mypageControllers = [
                             fit_history = $7,
                             fit_goal = $8,
                             introduction = $9,
-                            gym_id = CAST($10 AS INTEGER),
+                            gym_id = (SELECT gym_id FROM gym WHERE gym = $10 LIMIT 1),
                             file_id = CAST($11 AS INTEGER)
                         WHERE user_id = $12
                     `;
@@ -140,7 +139,7 @@ const mypageControllers = [
                         cleanFitHistory,
                         cleanFitGoal,
                         cleanIntroduction,
-                        cleanGYM,
+                        gym,
                         cleanFileId,
                         userId
                     ]);
@@ -234,10 +233,12 @@ const mypageControllers = [
                         }
                     }
 
+                    const replaceSearch = search.replace(/ /g, '');
+
                     // Gym 검색 (LIKE 검색)
                     const gymSearch = await sendQuery(
-                        'SELECT * FROM gym WHERE gym ILIKE $1 ORDER BY gym LIMIT 10',
-                        [`%${search.trim()}%`]
+                        `SELECT * FROM gym WHERE REPLACE(gym, ' ', '') ILIKE $1 ORDER BY gym LIMIT 10`,
+                        [`%${replaceSearch}%`]
                     );
 
                     return { 
@@ -424,13 +425,16 @@ const selectUserData = async (userId) => {
             fit_history,
             fit_goal,
             introduction,
-			gym_id,
+			g.gym,
             role
-        FROM "USER"
+        FROM "USER" u
+        LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
         WHERE user_id = $1
     `;
-
-    return await sendQuery(userQuery, [userId]);
+    const test = await sendQuery(userQuery, [userId]);
+    console.log("userId", userId);
+    console.log("test", test);
+    return test;
 }
 
 

@@ -2,7 +2,7 @@ const { sendQuery } = require('../../config/database');
 const { getPermission } = require('./boardControllers');
 
 const PAGE_NUM = 10;
-
+const COMMENT_PAGE_NUM = 20;
 
 const getPageCount = async (req,res)=>{
   const { boardId } = req.params;
@@ -230,7 +230,7 @@ const getFilteredPosts = async (req, res)=>{
           post_id, user_id, nick_name, category_id, title, view_cnt, 
           parent_post_id, path, depth, created_time, updated_time, content,
           (
-            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id
+            SELECT COUNT(*) FROM comment AS c WHERE c.post_id = post.post_id and c.is_deleted = FALSE
           ) AS comment_cnt
         FROM post
         LEFT JOIN (
@@ -381,9 +381,36 @@ const updatePost = async (req,res)=>{
   res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
+const getCommentPageCount = async (req,res)=>{
+  const {postId} = req.params;
+  const query = `
+    SELECT COUNT(*) AS total_count
+    FROM comment
+    WHERE post_id = $1
+  `;
+  const params= [postId];
+  try {
+    const result = await sendQuery(query, params);
+    const pageCount =  Math.ceil(result[0].totalCount/COMMENT_PAGE_NUM);
+    res?.json({pageCount,success:true})
+    return pageCount;
+  } catch (error) {
+    console.log(error);
+    res?.json({success:false})
+    return 1;
+  }
+}
+
 const getComments = async (req, res)=>{
   const {postId} = req.params;
+  const {page} = req.query;
   try {
+    let page_num = 0;
+    if (page && !isNaN(parseInt(page, 10))) {
+      page_num = (parseInt(page, 10) - 1) * COMMENT_PAGE_NUM;
+    }
+    if (page_num < 0) page_num = 0;
+
     const comments = await sendQuery(
       `
       select comment_id, post_id, nick_name, user_id, content, is_deleted, parent_comment_id, path, depth, created_time, updated_time 
@@ -398,11 +425,45 @@ const getComments = async (req, res)=>{
             WHERE child.parent_comment_id = c.comment_id and child.is_deleted = false
         ))
       order by path
-      `,[postId]
+      LIMIT $2
+      OFFSET $3
+      `,[postId, COMMENT_PAGE_NUM, page_num]
     );
-    res.json({data:{comments}, success:true});
+
+    const pageCount = await getCommentPageCount(req);
+
+    res.json({data:{comments,pageCount}, success:true});
   } catch (error) {
     res.json({success:false});
+  }
+}
+
+const getFindComment = async (req,res)=>{
+  const {commentId, postId} = req.params;
+  const query = `
+      WITH ordered_comments AS (
+        SELECT
+          comment_id,
+          ROW_NUMBER() OVER (
+            ORDER BY path ASC
+          ) AS row_num
+        FROM comment
+        WHERE post_id = $1
+      )
+      SELECT
+        row_num,
+        CEIL(row_num::decimal / $2) AS page_number
+      FROM ordered_comments
+      WHERE comment_id = $3;
+      `
+  const params = [postId,COMMENT_PAGE_NUM, commentId];
+  try {
+    const result = await sendQuery(query, params);
+    res?.json({page:result[0].pageNumber, success:true});
+    return result[0].pageNumber;
+  } catch (error) {
+    res?.json({success:false});
+    return -1;
   }
 }
 
@@ -510,4 +571,16 @@ const updateComment = async (req, res)=>{
   res.json({msg:"수정이 완료되었습니다.", success:true});
 }
 
-module.exports = {getPosts,getPost,createPost,updatePost,deletePost, getComments, createComment, deleteComment, updateComment,getFilteredPosts};
+module.exports = {
+  getPosts,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost,
+  getComments, 
+  createComment, 
+  deleteComment, 
+  updateComment,
+  getFindComment,
+  getFilteredPosts
+};

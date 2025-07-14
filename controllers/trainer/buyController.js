@@ -40,6 +40,7 @@ const buyControllers = [
                             ${params && !(params.status == undefined || params.status == '') ? `and b.status = $2`: ''}
                         ) bp
                         on u. user_id = bp.user_id
+                        group by u.user_id, u.user_name, u.nick_name
                     `;
                     let queryParam = [userId];
                     if(params && !(params.status == undefined || params.status == '')){
