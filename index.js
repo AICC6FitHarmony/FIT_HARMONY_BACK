@@ -8,8 +8,6 @@ const path = require('path'); // 경로 관련 모듈
 const cmmn = require('./config/cmmn'); // 공통 활용 기능 로드
 const upload = require('./routes/login/uploads');
 const ROLE = require('./config/ROLE'); // ROLE 구분 정보 객체
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpecs = require('./config/swagger');
 
 require('./config/passport'); // Passport 설정 불러오기
 require('dotenv').config(); // 환경변수 불러오기
@@ -104,12 +102,6 @@ app.use('/mypage', authorizeRole(totalAuthUserRole));
 // 4. /product 접근 권한 부여 : ADMIN, TRAINNER, MEMBER
 app.use('/product', authorizeRole(totalAuthUserRole));
 
-
-// 스웨거 API 문서 설정
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Fit Harmony API Documentation'
-}));
 
 // 정적 경로 적용. :
 // route로 인하여 선언된 URL PATH로만 접근이 가능하기 때문에
