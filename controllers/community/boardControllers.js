@@ -8,14 +8,14 @@ const getBoardInfo = async(req, res)=>{
   try {
     const result = await sendQuery(query,values);
     if(result.length === 0){
-      res?.json({success: false});
+      res?.status(404).json({success: false});
       return {success: false}; 
     }
-    res?.json({data:{info:result[0]}, success: true});
+    res?.status(200).json({data:{info:result[0]}, success: true});
     return {data:{info:result[0]}, success: true};
   } catch (error) {
     console.log(error);
-    res?.json({success: false});
+    res?.status(500).json({success: false});
     return {success: false};
   }
 }
@@ -26,14 +26,14 @@ const getBoards = async(req, res)=>{
     const result = await sendQuery(query);
 
     if(result.length === 0){
-      res?.json({success: false});
+      res?.status(404).json({success: false});
       return {success: false}; 
     }
-    res?.json({data:{boards:result}, success: true});
+    res?.status(200).json({data:{boards:result}, success: true});
     return {data:{boards:result}, success: true};
   } catch (error) {
     console.log(error);
-    res?.json({success: false});
+    res?.status(500).json({success: false});
     return {success: false};
   }
 }
@@ -54,19 +54,19 @@ const getFilteredBoards = async (req, res)=>{
   const params = [role, permission];
   try {
     const result = await sendQuery(query,params);
-    res.json({boards:result, success:true});
+    res.status(200).json({boards:result, success:true});
   } catch (error) {
-    res.json({success:false});
+    res.status(500).json({success:false});
   }
 }
 
 const createBoard = async(req, res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success:false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success:false});
   }
   const {role:authRole} = req.user;
   if(authRole !== "ADMIN"){
-    return res.json({msg:"권한없음", success:false});
+    return res.status(403).json({msg:"권한없음", success:false});
   }
 
   const {boardName, isReply, isComment} = req.body;
@@ -74,20 +74,20 @@ const createBoard = async(req, res)=>{
   const values = [boardName, isComment, isReply];
   try {
     const result = await sendQuery(query, values);
-    res.json({board:result[0], success:true})
+    res.status(201).json({board:result[0], success:true})
   } catch (error) {
-    res.json({msg:"error",success:false})
+    res.status(500).json({msg:"error",success:false})
   } 
 }
 
 //게시글 카테고리(게시판) 추가, 수정
 const updateBoard = async(req, res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success:false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success:false});
   }
   const {role:authRole} = req.user;
   if(authRole !== "ADMIN"){
-    return res.json({msg:"권한없음", success:false});
+    return res.status(403).json({msg:"권한없음", success:false});
   }
 
   const {categoryId, categoryName, isReply, isComment} = req.body;
@@ -97,9 +97,9 @@ const updateBoard = async(req, res)=>{
     const values = [categoryName, isComment, isReply];
     try {
       const result = await sendQuery(query, values);
-      res.json({board:result[0], success:true});
+      res.status(201).json({board:result[0], success:true});
     } catch (error) {
-      res.json({success:false});
+      res.status(500).json({success:false});
     }
     return
   }
@@ -108,9 +108,9 @@ const updateBoard = async(req, res)=>{
   const values = [categoryName, isComment, isReply, categoryId];
   try {
     const result = await sendQuery(query, values);
-    res.json({board:result[0], success:true})
+    res.status(200).json({board:result[0], success:true})
   } catch (error) {
-    res.json({msg:"error",success:false})
+    res.status(500).json({msg:"error",success:false})
   } 
 }
 
@@ -122,11 +122,11 @@ const getPermissions = async(req, res)=>{
   const values = [boardId];
   try {
     const result = await sendQuery(query, values);
-    res?.json({permissions:result, success:true});
+    res?.status(200).json({permissions:result, success:true});
     return {permissions:result, success:true};
   } catch (error) {
     console.log(error);
-    res?.json({success:false});
+    res?.status(500).json({success:false});
     return {success:false};
   }
 }
@@ -142,15 +142,15 @@ const getPermission = async(req, res)=>{
   try {
     const result = await sendQuery(query, values);
     if (result.length > 0){
-      res?.json({permission:true, success:true});
+      res?.status(200).json({permission:true, success:true});
       return true;
     }else{
-      res?.json({permission:false, success:true});
+      res?.status(200).json({permission:false, success:true});
       return false;
     }
   } catch (error) {
     console.log(error);
-    res?.json({success:false});
+    res?.status(500).json({success:false});
     return false;
   }
 }
@@ -158,11 +158,11 @@ const getPermission = async(req, res)=>{
 const updatePermission = async(req,res)=>
 {
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success:false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success:false});
   }
   const {role:authRole} = req.user;
   if(authRole !== "ADMIN"){
-    return res.json({msg:"권한없음", success:false});
+    return res.status(403).json({msg:"권한없음", success:false});
   }
   const {boardId, permissions} = req.body;
   const query = `insert into post_category_permission(category_id, role, permission) values($1,$2,$3)`;
@@ -172,20 +172,20 @@ const updatePermission = async(req,res)=>
     for(let i = 0; i < permissions.length; i++){
       await sendQuery(query,[boardId, permissions[i].role, permissions[i].permission]);
     }
-    res?.json({success:true});
+    res?.status(200).json({success:true});
   } catch (error) {
     console.log(error)
-    res?.json({msg:"error" ,success:false});
+    res?.status(500).json({msg:"error" ,success:false});
   }
 }
 
 const deletePermission = async(req, res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success:false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success:false});
   }
   const {role:authRole} = req.user;
   if(authRole !== "ADMIN"){
-    return res.json({msg:"권한없음", success:false});
+    return res.status(403).json({msg:"권한없음", success:false});
   }
 
   const {boardId, role, permission} = req.query;
@@ -200,10 +200,10 @@ const deletePermission = async(req, res)=>{
   if(permission) values.push(permission);
   try {
     await sendQuery(query,values);
-    res.json({success:true});
+    res.status(200).json({success:true});
   } catch (error) {
     console.log(error);
-    res.json({success:false});
+    res.status(500).json({success:false});
   }
 }
 
