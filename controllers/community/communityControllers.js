@@ -385,15 +385,22 @@ const getCommentPageCount = async (req,res)=>{
   const {postId} = req.params;
   const query = `
     SELECT COUNT(*) AS total_count
-    FROM comment
+    FROM comment as c
     WHERE post_id = $1
+      and (is_deleted = false OR 
+            EXISTS (
+            SELECT 1
+            FROM comment child
+            WHERE child.parent_comment_id = c.comment_id and child.is_deleted = false
+        ))
   `;
   const params= [postId];
   try {
     const result = await sendQuery(query, params);
     const pageCount =  Math.ceil(result[0].totalCount/COMMENT_PAGE_NUM);
-    res?.status(200).json({pageCount,success:true})
-    return pageCount;
+    const commentCount = result[0].totalCount;
+    res?.status(200).json({pageCount,commentCount,success:true})
+    return {pageCount,commentCount};
   } catch (error) {
     console.log(error);
     res?.status(500).json({success:false})
@@ -410,7 +417,6 @@ const getComments = async (req, res)=>{
       page_num = (parseInt(page, 10) - 1) * COMMENT_PAGE_NUM;
     }
     if (page_num < 0) page_num = 0;
-
     const comments = await sendQuery(
       `
       select comment_id, post_id, nick_name, user_id, content, is_deleted, parent_comment_id, path, depth, created_time, updated_time 
@@ -429,10 +435,10 @@ const getComments = async (req, res)=>{
       OFFSET $3
       `,[postId, COMMENT_PAGE_NUM, page_num]
     );
+    const {pageCount, commentCount} = await getCommentPageCount(req);
+    console.log(comments.length, page_num, pageCount, commentCount);
 
-    const pageCount = await getCommentPageCount(req);
-
-    res.status(200).json({data:{comments,pageCount}, success:true});
+    res.status(200).json({data:{comments,pageCount, commentCount}, success:true});
   } catch (error) {
     res.status(500).json({success:false});
   }
@@ -447,8 +453,14 @@ const getFindComment = async (req,res)=>{
           ROW_NUMBER() OVER (
             ORDER BY path ASC
           ) AS row_num
-        FROM comment
+        FROM comment as c
         WHERE post_id = $1
+          and (is_deleted = false OR 
+            EXISTS (
+            SELECT 1
+            FROM comment child
+            WHERE child.parent_comment_id = c.comment_id and child.is_deleted = false
+        ))
       )
       SELECT
         row_num,
