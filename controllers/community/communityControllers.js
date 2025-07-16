@@ -149,10 +149,10 @@ const getPosts = async (req,res)=>{
     const posts = await sendQuery(query,params);
     const pageCount = await getPageCount(req,res);
     console.log("search Count : ",posts.length + " : " + pageCount);
-    res?.json({data:{posts,pageCount}, success:true});
+    res?.status(200).json({data:{posts,pageCount}, success:true});
   } catch (error) {
     console.log(error);
-    res?.json({success:false})
+    res?.status(500).json({success:false})
   }
   return;
 }
@@ -252,10 +252,10 @@ const getFilteredPosts = async (req, res)=>{
     const posts = await sendQuery(query,params);
     const pageCount = await getPageCount(req,res);
     console.log("search Count : ",posts.length + " : " + pageCount);
-    res?.json({data:{posts,pageCount}, success:true});
+    res?.status(200).json({data:{posts,pageCount}, success:true});
   } catch (error) {
     console.log(error);
-    res?.json({success:false})
+    res?.status(500).json({success:false})
   }
   return;
 }
@@ -291,7 +291,7 @@ const getPost = async (req,res)=>{
 
 const createPost = async (req,res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success : false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success : false});
   }
   try {
     const form = req.body;
@@ -306,7 +306,7 @@ const createPost = async (req,res)=>{
     }});
     console.log("this Permission : ", permission);
     if(permission == false){
-      res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+      res.status(403).json({msg:"게시판 작성 권한이 없습니다.", success:false})
       return;
     }
 
@@ -314,42 +314,42 @@ const createPost = async (req,res)=>{
       [userId, board_id, title, content, path, depth,false]);
     // console.log(posts);
 
-    res.json({msg:"작성이 완료되었습니다.", postId : posts[0].postId, success: true});
+    res.status(201).json({msg:"작성이 완료되었습니다.", postId : posts[0].postId, success: true});
   } catch (error) {
-    res.json({msg:"작성이 실패", success: false});
+    res.status(500).json({msg:"작성이 실패", success: false});
   }
   
 }
 
 const deletePost = async (req,res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다."});
+    return res.status(401).json({msg:"회원이 아닙니다."});
   }
   const {userId:authId} = req.user;
   const {userId:reqId, postId} = req.body;
   // console.log(req.body);
   if(authId !== reqId){
-    res.json({msg:"권한이 없습니다1.", success:false});
+    res.status(403).json({msg:"권한이 없습니다1.", success:false});
     return;
   }
 
   const target = await sendQuery(`select user_id from post where post_id = $1`,[postId]);
   if(target.length ===0)
-    return res.json({msg:"존재하지 않는 게시글 입니다.", success:false});
+    return res.status(404).json({msg:"존재하지 않는 게시글 입니다.", success:false});
   const dbUser = target[0].userId;
   // console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
-    res.json({msg:"권한이 없습니다.", success:false});
+    res.status(403).json({msg:"권한이 없습니다.", success:false});
     return;
   }
   await sendQuery(`update post set is_deleted = $1 where post_id = $2`,[true,postId]);
-  res.json({msg:"삭제가 완료되었습니다.", success:true});
+  res.status(200).json({msg:"삭제가 완료되었습니다.", success:true});
 }
 
 const updatePost = async (req,res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다."});
+    return res.status(401).json({msg:"회원이 아닙니다."});
   }
   const {user} = req;
   const {userId:authId} = req.user;
@@ -358,7 +358,7 @@ const updatePost = async (req,res)=>{
 
   const target = await sendQuery(`select user_id from post where post_id = $1`,[post_id]);
   if(target.length ===0)
-    return res.json({msg:"찾을 수 없는 게시글 입니다.", success:false});
+    return res.status(404).json({msg:"찾을 수 없는 게시글 입니다.", success:false});
   const dbUser = target[0].userId;
 
   const permission = await getPermission({query:{
@@ -366,7 +366,7 @@ const updatePost = async (req,res)=>{
   }});
   console.log("this Permission : ", permission);
   if(permission == false){
-    res.json({msg:"게시판 작성 권한이 없습니다.", success:false})
+    res.status(403).json({msg:"게시판 작성 권한이 없습니다.", success:false})
     return;
   }
 
@@ -374,29 +374,36 @@ const updatePost = async (req,res)=>{
   console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
-    res.json({msg:"권한이 없습니다.", success:false});
+    res.status(403).json({msg:"권한이 없습니다.", success:false});
     return;
   }
   await sendQuery(`update post set title = $1, content = $2, category_id = $4 where post_id = $3`,[title,content,post_id,board_id]);
-  res.json({msg:"게시글 수정이 완료되었습니다.", success:true});
+  res.status(200).json({msg:"게시글 수정이 완료되었습니다.", success:true});
 }
 
 const getCommentPageCount = async (req,res)=>{
   const {postId} = req.params;
   const query = `
     SELECT COUNT(*) AS total_count
-    FROM comment
+    FROM comment as c
     WHERE post_id = $1
+      and (is_deleted = false OR 
+            EXISTS (
+            SELECT 1
+            FROM comment child
+            WHERE child.parent_comment_id = c.comment_id and child.is_deleted = false
+        ))
   `;
   const params= [postId];
   try {
     const result = await sendQuery(query, params);
     const pageCount =  Math.ceil(result[0].totalCount/COMMENT_PAGE_NUM);
-    res?.json({pageCount,success:true})
-    return pageCount;
+    const commentCount = result[0].totalCount;
+    res?.status(200).json({pageCount,commentCount,success:true})
+    return {pageCount,commentCount};
   } catch (error) {
     console.log(error);
-    res?.json({success:false})
+    res?.status(500).json({success:false})
     return 1;
   }
 }
@@ -410,7 +417,6 @@ const getComments = async (req, res)=>{
       page_num = (parseInt(page, 10) - 1) * COMMENT_PAGE_NUM;
     }
     if (page_num < 0) page_num = 0;
-
     const comments = await sendQuery(
       `
       select comment_id, post_id, nick_name, user_id, content, is_deleted, parent_comment_id, path, depth, created_time, updated_time 
@@ -429,12 +435,12 @@ const getComments = async (req, res)=>{
       OFFSET $3
       `,[postId, COMMENT_PAGE_NUM, page_num]
     );
+    const {pageCount, commentCount} = await getCommentPageCount(req);
+    console.log(comments.length, page_num, pageCount, commentCount);
 
-    const pageCount = await getCommentPageCount(req);
-
-    res.json({data:{comments,pageCount}, success:true});
+    res.status(200).json({data:{comments,pageCount, commentCount}, success:true});
   } catch (error) {
-    res.json({success:false});
+    res.status(500).json({success:false});
   }
 }
 
@@ -447,8 +453,14 @@ const getFindComment = async (req,res)=>{
           ROW_NUMBER() OVER (
             ORDER BY path ASC
           ) AS row_num
-        FROM comment
+        FROM comment as c
         WHERE post_id = $1
+          and (is_deleted = false OR 
+            EXISTS (
+            SELECT 1
+            FROM comment child
+            WHERE child.parent_comment_id = c.comment_id and child.is_deleted = false
+        ))
       )
       SELECT
         row_num,
@@ -459,43 +471,43 @@ const getFindComment = async (req,res)=>{
   const params = [postId,COMMENT_PAGE_NUM, commentId];
   try {
     const result = await sendQuery(query, params);
-    res?.json({page:result[0].pageNumber, success:true});
+    res?.status(200).json({page:result[0].pageNumber, success:true});
     return result[0].pageNumber;
   } catch (error) {
-    res?.json({success:false});
+    res?.status(500).json({success:false});
     return -1;
   }
 }
 
 const deleteComment = async (req,res) => {
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다."});
+    return res.status(401).json({msg:"회원이 아닙니다."});
   }
   const {userId:authId} = req.user;
   const {userId:reqId, commentId} = req.body;
   // console.log(req.body);
   if(authId !== reqId){
-    res.json({msg:"권한이 없습니다1.", success:false});
+    res.status(403).json({msg:"권한이 없습니다1.", success:false});
     return;
   }
 
   const target = await sendQuery(`select user_id from comment where comment_id = $1`,[commentId]);
   if(target.length ===0)
-    return res.json({msg:"존재하지 않는 댓글 입니다.", success:false});
+    return res.status(404).json({msg:"존재하지 않는 댓글 입니다.", success:false});
   const dbUser = target[0].userId;
   // console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
-    res.json({msg:"권한이 없습니다.", success:false});
+    res.status(403).json({msg:"권한이 없습니다.", success:false});
     return;
   }
   await sendQuery(`update comment set is_deleted = $1 where comment_id = $2`,[true,commentId]);
-  res.json({msg:"삭제가 완료되었습니다.", success:true});
+  res.status(200).json({msg:"삭제가 완료되었습니다.", success:true});
 }
 
 const createComment = async (req,res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success : false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success : false});
   }
   try {
     const form = req.body;
@@ -531,44 +543,44 @@ const createComment = async (req,res)=>{
     
     console.log(path,depth);
 
-    await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7)",
+    const result = await sendQuery("insert into comment(user_id, post_id, content,parent_comment_id, path, depth, is_deleted) values($1, $2, $3, $4, $5, $6, $7) returning post_id, comment_id",
       [userId, post_id, content,parent_comment_id, path, depth,false]);
     // console.log(posts);
 
-    res.json({msg:"작성이 완료되었습니다.", success: true});
+    res.status(201).json({data:result[0],msg:"작성이 완료되었습니다.", success: true});
   } catch (error) {
     console.log(error)
-    res.json({msg:"작성이 실패", success: false});
+    res.status(500).json({msg:"작성이 실패", success: false});
   }
   
 }
 
 const updateComment = async (req, res)=>{
   if (req.isAuthenticated() == false){
-    return res.json({msg:"회원이 아닙니다.", success : false});
+    return res.status(401).json({msg:"회원이 아닙니다.", success : false});
   }
   const {userId:authId} = req.user;
   const {userId:reqId, commentId, content} = req.body;
   // console.log(req.body);
   if(authId !== reqId){
-    res.json({msg:"권한이 없습니다1.", success:false});
+    res.status(403).json({msg:"권한이 없습니다1.", success:false});
     return;
   }
   const target = await sendQuery(`select user_id from comment where comment_id = $1`,[commentId]);
   if(target.length ===0)
-    return res.json({msg:"존재하지 않는 댓글 입니다.", success:false});
+    return res.status(404).json({msg:"존재하지 않는 댓글 입니다.", success:false});
   const dbUser = target[0].userId;
   // console.log(target);
   // console.log(authId, reqId, dbUser)
   if(authId !== dbUser){
-    res.json({msg:"권한이 없습니다.", success:false});
+    res.status(403).json({msg:"권한이 없습니다.", success:false});
     return;
   }
 
   await sendQuery(`
     update comment set content = $1 where comment_id = $2
     `,[content, commentId])
-  res.json({msg:"수정이 완료되었습니다.", success:true});
+  res.status(200).json({msg:"수정이 완료되었습니다.", success:true});
 }
 
 module.exports = {
