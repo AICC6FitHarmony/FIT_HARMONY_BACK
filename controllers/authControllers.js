@@ -29,7 +29,6 @@ const authControllers = [
                     message: 'Login Error...'
                 };
             }
-
         }   
     },
 
