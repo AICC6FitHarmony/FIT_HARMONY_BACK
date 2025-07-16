@@ -161,16 +161,40 @@ app.get(
     state: Math.random().toString(36).substring(7), // CSRF 방지용
   })
 );
+// app.get(
+//   `${process.env.GOOGLE_CALLBACK_URL}`,
+//   passport.authenticate('google', { failureRedirect: '/login-fail'}),
+//   (request, response) => {
+//     // 세션 저장 후 프론트에서 인증 확인 가능
+//     response.redirect(`${process.env.FRONT_DOMAIN}/`); //  동작 테스트 확인 필요
+//   }
+// );
 app.get(
-  `${process.env.GOOGLE_CALLBACK_URL}`,
-  passport.authenticate('google', { failureRedirect: '/login-fail'}),
-  (request, response) => {
-    // 세션 저장 후 프론트에서 인증 확인 가능
-    response.redirect(`${process.env.FRONT_DOMAIN}/`); //  동작 테스트 확인 필요
+  `${process.env.GOOGLE_CALLBACK_URL}`,(req,res,next)=>{
+    passport.authenticate('google',(err, user, info)=>{
+      console.log(info);
+
+      if(err){
+        return res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`);
+      }
+      if(!user){
+        if(!info.status) return res.redirect(`${process.env.FRONT_DOMAIN}/login/signup?login=fail`);
+        if(info.status==="DELETED"){
+          return res.redirect(`${process.env.FRONT_DOMAIN}/login/fail?status=deleted`);
+        }
+      }
+      return req.login(user, (loginError)=>{
+        if(loginError){
+          console.log(loginError);
+          return next(loginError);
+        }
+        return res.redirect(`${process.env.FRONT_DOMAIN}/`);
+      });
+    })(req,res,next);
   }
 );
 
-app.get('/login-fail', (req, res) => {
+app.get('/login-fail', (req, res,next) => {
   res.redirect(`${process.env.FRONT_DOMAIN}/login/fail`); //  동작 테스트 확인 필요
 });
 
