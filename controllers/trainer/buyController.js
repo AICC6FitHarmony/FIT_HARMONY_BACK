@@ -88,7 +88,7 @@ const buyControllers = [
 
                     // 로그인 사용자 기준 상품 조회 with 페이징 + 검색 처리
                     const userId = request.user.userId;
-                    const pagePerCount = 9;
+                    const pagePerCount = 9.0;
 
                     // 기본 파라미터
                     let productQueryParams = [userId];
@@ -139,7 +139,7 @@ const buyControllers = [
                     }
 
                     const myProductListTotalPageQuery = `
-                        select ceil(count(product_id) / $2::int)::int as total_page
+                        select ceil(count(product_id) / $2::float)::int as total_page
                         from products
                         WHERE user_id = $1
                         ${totalPageClause}
