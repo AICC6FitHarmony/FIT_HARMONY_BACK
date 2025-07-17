@@ -35,8 +35,9 @@ const introControllers = [
                                                            title,
                                                           (SELECT COUNT(*)
                                                            FROM comment c 
-                                                    WHERE p.post_id = c.post_id) AS comment_count 
-                                                    FROM post p 
+                                                    WHERE p.post_id = c.post_id) AS comment_count
+                                                    FROM post p
+                                                    WHERE p.is_deleted = 'false'
                                                     ORDER BY created_time DESC 
                                                     LIMIT 5
                                                     `
@@ -46,6 +47,7 @@ const introControllers = [
                                                        FROM comment c 
                                                        WHERE p.post_id = c.post_id) AS comment_count
                                                 FROM post p
+                                                WHERE p.is_deleted = 'false'
                                                 ORDER BY comment_count DESC 
                                                 LIMIT 5
                                                 `
