@@ -343,7 +343,7 @@ const updateInbodyData = async (req, res) => {
     }
 };
 
-// 인바디 OCR 분석 요청
+// 인바디 분석 요청
 const requestInbodyOcr = async (req, res) => {
     try {
         const { fileId } = req.body;
@@ -397,7 +397,7 @@ const requestInbodyOcr = async (req, res) => {
                         if (parsedResult.success === 'true') {
                             resolve(parsedResult.content);
                         } else {
-                            reject(parsedResult.message || 'OCR 분석 실패');
+                            reject(parsedResult.message || '인바디 분석 실패');
                         }
                     } catch (err) {
                         reject('결과 파싱 실패');
@@ -408,15 +408,91 @@ const requestInbodyOcr = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'OCR 분석이 완료되었습니다.',
+            message: '인바디 분석이 완료되었습니다.',
             data: ocrResult.analyzed_data
         });
 
     } catch (error) {
-        console.error('인바디 OCR 분석 오류:', error);
+        console.error('인바디 분석 오류:', error);
         res.status(500).json({
             success: false,
-            message: 'OCR 분석 중 오류가 발생했습니다.'
+            message: '인바디 분석 중 오류가 발생했습니다.'
+        });
+    }
+};
+
+// 인바디 데이터 삭제
+const deleteInbodyData = async (req, res) => {
+    try {
+        const { inbodyId } = req.params;
+        
+        if (!inbodyId) {
+            return res.status(400).json({
+                success: false,
+                message: '인바디 ID가 필요합니다.'
+            });
+        }
+
+        // 인바디 데이터 존재 여부 확인
+        const checkQuery = `
+            SELECT inbody_id, user_id, weight, inbody_time
+            FROM inbody
+            WHERE inbody_id = $1
+        `;
+        
+        const checkResult = await sendQuery(checkQuery, [inbodyId]);
+        
+        if (!checkResult || checkResult.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '삭제할 인바디 데이터를 찾을 수 없습니다.'
+            });
+        }
+
+        const inbodyData = checkResult[0];
+        const userId = inbodyData.user_id;
+
+        // 인바디 데이터 삭제
+        const deleteQuery = `
+            DELETE FROM inbody
+            WHERE inbody_id = $1
+            RETURNING inbody_id
+        `;
+
+        const deleteResult = await sendQuery(deleteQuery, [inbodyId]);
+
+        if (deleteResult && deleteResult.length > 0) {
+            // 사용자 몸무게를 가장 최근 인바디 데이터로 업데이트
+            const updateUserWeightQuery = `
+                UPDATE "USER" u
+                SET weight = (
+                    SELECT weight
+                    FROM inbody i
+                    WHERE i.user_id = $1
+                    ORDER BY inbody_time DESC
+                    LIMIT 1
+                )
+                WHERE u.user_id = $1
+                RETURNING u.user_id
+            `;
+
+            await sendQuery(updateUserWeightQuery, [userId]);
+
+            res.status(200).json({
+                success: true,
+                message: '인바디 데이터가 성공적으로 삭제되었습니다.'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: '인바디 데이터 삭제에 실패했습니다.'
+            });
+        }
+    } catch (error) {
+        console.error('인바디 데이터 삭제 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 오류가 발생했습니다.'
         });
     }
 };
@@ -426,5 +502,6 @@ module.exports = {
     getUserInbodyMonthData,
     insertInbodyData,
     updateInbodyData,
+    deleteInbodyData,
     requestInbodyOcr
 }; 

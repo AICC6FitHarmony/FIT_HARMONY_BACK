@@ -20,7 +20,7 @@ passport.use(new GoogleStrategy({
 }, async (req, accessToken, refreshToken, profile, done) => {
     try {
         const { id,displayName, emails, photos } = profile;
-        const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL from "USER" where EMAIL = $1', [emails[0].value]);
+        const user = await sendQuery('SELECT USER_ID, USER_NAME,NICK_NAME,EMAIL,STATUS from "USER" where EMAIL = $1', [emails[0].value]);
 
         const formData = req?.session?.oauthFormData;
         if(user.length==0 && formData !== undefined){//회원가입
@@ -28,14 +28,18 @@ passport.use(new GoogleStrategy({
         }
         
         if (user?.length > 0) {
+            // console.log(user[0]);
+            if(user[0].status == 'DELETED'){
+                return done(null,false, {message:"탈퇴한 회원입니다.",status:user[0].status, success:false})
+            }
             return done(null, user[0]); // 기존 사용자
         }else{
             console.log("가입되지 않은 회원")
-            return done(null,false, {message:"가입되지 않은 회원", success:false})
+            return done(null,false, {message:"가입되지 않은 회원",status:null, success:false})
         }
     } catch (err) {
         console.log(err);
-        return done(null,false, {message : '인증 중 에러가 발생하였습니다.', success:false});
+        return done(err,false, {message : '인증 중 에러가 발생하였습니다.', success:false});
     }
 }));
 

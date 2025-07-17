@@ -407,6 +407,255 @@ const mypageControllers = [
                 }
             }
         }
+    },
+
+    // 관리자용 - 모든 회원 목록 조회
+    {
+        url : '/admin/members',
+        type : 'get',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const role = request.user.role;
+                    if(role !== 'ADMIN'){
+                        return {
+                            message: 'noAuth',
+                            success: false
+                        }
+                    }
+
+                    const page = parseInt(params.page) || 1;
+                    const limit = parseInt(params.limit) || 10;
+                    const search = params.search || '';
+                    const status = params.status || '';
+                    const roleFilter = params.role || '';
+                    
+                    const offset = (page - 1) * limit;
+
+                    let whereConditions = [];
+                    let queryParams = [];
+                    let paramIndex = 1;
+
+                    if(search) {
+                        whereConditions.push(`(u.user_name ILIKE $${paramIndex} OR u.nick_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`);
+                        queryParams.push(`%${search}%`);
+                        paramIndex++;
+                    }
+
+                    if(status) {
+                        whereConditions.push(`u.status = $${paramIndex}`);
+                        queryParams.push(status);
+                        paramIndex++;
+                    }
+
+                    if(roleFilter) {
+                        whereConditions.push(`u.role = $${paramIndex}`);
+                        queryParams.push(roleFilter);
+                        paramIndex++;
+                    }
+
+                    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+                    // 전체 개수 조회
+                    const countQuery = `
+                        SELECT COUNT(*) as total
+                        FROM "USER" u
+                        ${whereClause}
+                    `;
+                    const countResult = await sendQuery(countQuery, queryParams);
+                    const total = parseInt(countResult[0].total);
+
+                    // 회원 목록 조회
+                    const membersQuery = `
+                        SELECT 
+                            u.user_id,
+                            u.user_name,
+                            u.nick_name,
+                            u.email,
+                            u.phone_number,
+                            u.age,
+                            u.gender,
+                            u.status,
+                            u.role,
+                            u.created_time,
+                            g.gym,
+                            (SELECT COUNT(*) FROM buy b WHERE b.user_id = u.user_id) as purchase_count
+                        FROM "USER" u
+                        LEFT JOIN gym g ON u.gym_id = g.gym_id
+                        ${whereClause}
+                        ORDER BY u.created_time DESC
+                        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+                    `;
+                    
+                    queryParams.push(limit, offset);
+                    const membersResult = await sendQuery(membersQuery, queryParams);
+
+                    return {
+                        message: 'success',
+                        success: true,
+                        data: {
+                            members: membersResult,
+                            pagination: {
+                                current: page,
+                                total: total,
+                                limit: limit,
+                                totalPages: Math.ceil(total / limit)
+                            }
+                        }
+                    }
+                } else {
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/admin/members error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
+    },
+
+    // 관리자용 - 회원 상태 변경
+    {
+        url : '/admin/member/status',
+        type : 'put',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const role = request.user.role;
+                    if(role !== 'ADMIN'){
+                        return {
+                            message: 'noAuth',
+                            success: false
+                        }
+                    }
+
+                    const { userId, status, reason } = params;
+
+                    if(!userId || !status) {
+                        return {
+                            message: 'noParam',
+                            success: false
+                        }
+                    }
+
+                    let updateQuery;
+                    let queryParams;
+
+                    if(status === 'DELETED' && reason) {
+                        updateQuery = `
+                            UPDATE "USER" SET
+                                status = $1,
+                                introduction = $2
+                            WHERE user_id = $3
+                        `;
+                        queryParams = [status, reason, userId];
+                    } else {
+                        updateQuery = `
+                            UPDATE "USER" SET
+                                status = $1
+                            WHERE user_id = $2
+                        `;
+                        queryParams = [status, userId];
+                    }
+
+                    await sendQuery(updateQuery, queryParams);
+
+                    return {
+                        message: 'success',
+                        success: true
+                    }
+                } else {
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/admin/member/status error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
+    },
+
+    // 관리자용 - 회원 상세 정보 조회
+    {
+        url : '/admin/member/:userId',
+        type : 'get',
+        callback : async ({request, params}) => {
+            try {
+                if(request.isAuthenticated()){
+                    const role = request.user.role;
+                    if(role !== 'ADMIN'){
+                        return {
+                            message: 'noAuth',
+                            success: false
+                        }
+                    }
+
+                    const userId = params.userId;
+
+                    const memberQuery = `
+                        SELECT 
+                            u.user_id,
+                            u.user_name,
+                            u.nick_name,
+                            u.email,
+                            u.phone_number,
+                            u.age,
+                            u.height,
+                            u.weight,
+                            u.gender,
+                            u.fit_history,
+                            u.fit_goal,
+                            u.introduction,
+                            u.status,
+                            u.role,
+                            u.created_time,
+                            g.gym,
+                            g.gym_address,
+                            (SELECT COUNT(*) FROM buy b WHERE b.user_id = u.user_id) as purchase_count,
+                            (SELECT COUNT(*) FROM inbody i WHERE i.user_id = u.user_id) as inbody_count
+                        FROM "USER" u
+                        LEFT JOIN gym g ON u.gym_id = g.gym_id
+                        WHERE u.user_id = $1
+                    `;
+
+                    const memberResult = await sendQuery(memberQuery, [userId]);
+
+                    if(memberResult && memberResult.length > 0) {
+                        return {
+                            message: 'success',
+                            success: true,
+                            data: memberResult[0]
+                        }
+                    } else {
+                        return {
+                            message: 'notFound',
+                            success: false
+                        }
+                    }
+                } else {
+                    return {
+                        message: 'noAuth',
+                        success: false
+                    }
+                }
+            } catch (error) {
+                console.log(`/mypage/admin/member/:userId error : ${error.message}`);
+                return {
+                    message: 'error',
+                    success: false
+                }
+            }
+        }
     }
 ];
 
@@ -431,10 +680,8 @@ const selectUserData = async (userId) => {
         LEFT OUTER JOIN gym g ON u.gym_id = g.gym_id
         WHERE user_id = $1
     `;
-    const test = await sendQuery(userQuery, [userId]);
-    console.log("userId", userId);
-    console.log("test", test);
-    return test;
+
+    return await sendQuery(userQuery, [userId]);
 }
 
 

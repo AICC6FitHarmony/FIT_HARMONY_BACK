@@ -14,6 +14,7 @@ const getTrainerList = async (req, res) => {
         u.user_name,
         u.gender,
         (case when u.file_id is null then 1 else u.file_id end) as file_id,
+        u.fit_goal,
          
         g.gym,
         g.gym_address,
@@ -33,7 +34,7 @@ const getTrainerList = async (req, res) => {
 
       WHERE u.role = 'TRAINER' and u.status = 'ACTIVE'
 
-      GROUP BY u.user_id, u.user_name, u.gender, g.gym, g.gym_address, u.file_id
+      GROUP BY u.user_id, u.user_name, u.gender, g.gym, g.gym_address, u.file_id, u.fit_goal
       `;
 
     const trainerresult = await sendQuery(trainerquery);
