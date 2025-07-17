@@ -5,6 +5,11 @@ const PAGE_NUM = 10;
 const COMMENT_PAGE_NUM = 20;
 
 const getPageCount = async (req,res)=>{
+
+  let role = 'OTHERS'
+  if (req.isAuthenticated())
+    role = req.user.role;
+
   const { boardId } = req.params;
   const { keyword, key_type } = req.query;
   
@@ -21,6 +26,15 @@ const getPageCount = async (req,res)=>{
     params.push(parseInt(boardId, 10));
   }
   
+  whereClauses.push(`
+    post.category_id IN (
+      SELECT category_id
+      FROM post_category_permission
+      WHERE role = $${paramIdx++} AND permission = 'read'
+    )
+  `);
+  params.push(role);
+
   if (
     keyword &&
     keyword !== "null" &&
@@ -56,9 +70,9 @@ const getPageCount = async (req,res)=>{
   // console.log("COUNT QUERY", query);
   // console.log("COUNT PARAMS", params);
   
-  
   try {
     const result = await sendQuery(query, params);
+    console.log(result[0].totalCount);
     // const result = await sendQuery(query);
     const pageCount =  Math.ceil(result[0].totalCount/PAGE_NUM);
     // console.log(result)
@@ -325,10 +339,11 @@ const deletePost = async (req,res)=>{
   if (req.isAuthenticated() == false){
     return res.status(401).json({msg:"회원이 아닙니다."});
   }
-  const {userId:authId} = req.user;
+  const {userId:authId, role} = req.user;
   const {userId:reqId, postId} = req.body;
+
   // console.log(req.body);
-  if(authId !== reqId){
+  if(role!="ADMIN" && authId !== reqId){
     res.status(403).json({msg:"권한이 없습니다1.", success:false});
     return;
   }
@@ -339,7 +354,7 @@ const deletePost = async (req,res)=>{
   const dbUser = target[0].userId;
   // console.log(target);
   // console.log(authId, reqId, dbUser)
-  if(authId !== dbUser){
+  if(role!="ADMIN" &&authId !== dbUser){
     res.status(403).json({msg:"권한이 없습니다.", success:false});
     return;
   }
